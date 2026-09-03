@@ -67,6 +67,26 @@ GeneratedClaim
 ResumeSentence
 ```
 
+### Cardinality — MVP에서는 정확히 1:1
+
+```text
+GeneratedClaim ── exactly 1 ──> CareerEvidence
+```
+
+한 문장이 여러 Evidence를 근거로 삼는 것을 허용하지 않는다. 두 경험을 한 문장으로 합치지 않는다.
+
+```text
+CE-00001 → "JFR을 이용해 SSE 지연 원인을 분석했습니다."
+CE-00002 → "Redis Lua로 대기열 승격의 원자성을 보장했습니다."
+```
+
+이유는 검증 가능성이다. 한 문장이 N개 Evidence를 참조하면
+"이 문장의 이 부분이 저 Evidence에서 왔다"를 기계적으로 확인할 수 없고,
+근거가 약한 주장이 강한 주장에 묻어 들어간다.
+
+나중에 정말 필요해지면 `generated_claims` / `generated_claim_evidences`로 N:M 확장한다.
+그때는 새 ADR을 쓴다.
+
 ## 이유
 
 **"불가능하게 만드는 것"과 "하지 말라고 하는 것"은 다르다.**
@@ -87,7 +107,8 @@ NOT NULL로 두면 근거 없는 문장은 **저장 자체가 실패한다.**
 
 1. **생성 문장은 항상 Evidence 단위로 쪼개서 만든다.**
    여러 Evidence를 뭉뚱그린 한 문단을 통째로 생성하지 않는다.
-   한 문장 = 하나 이상의 Evidence Reference.
+   **한 문장 = 정확히 하나의 Evidence Reference.**
+   두 경험을 엮어야 하는 문장은 두 문장으로 나눈다.
 
 2. LLM 응답 스키마에서 `evidenceRef`를 optional로 두지 않는다.
    근거를 못 찾으면 문장을 생성하지 않고 **"근거 부족"으로 반환한다.**

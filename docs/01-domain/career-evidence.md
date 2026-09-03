@@ -39,6 +39,15 @@ result:
   1000개 연결 환경에서 정체 제거
   JavaMonitorEnter 341 → 0
 
+metrics:
+  - name: JavaMonitorEnter
+    before: "341"
+    after: "0"
+  - name: 데이터 갱신 지연
+    before: "14"
+    after: "0"
+    unit: s
+
 skills:
   - Java
   - Spring
@@ -63,22 +72,30 @@ source:
 
 ## 필드 정의
 
-| 필드 | 필수 | 설명 |
-| --- | --- | --- |
-| `title` | ✔ | 한 줄. 결과가 아니라 **문제를 식별하는 이름**. |
-| `category` | ✔ | 분류 태그. Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등. |
-| `context.project` | ✔ | 어떤 프로젝트·조직에서 있었던 일인가. **"어디서"** 에 답한다. |
-| `problem` | ✔ | 관찰된 현상. 가능하면 수치를 포함한다. |
-| `analysis` | | 어떻게 조사했는가 (도구·방법). 원문에 없으면 `null`. |
-| `rootCause` | | 실제 원인. **원문이 원인을 밝히지 않았다면 반드시 `null`.** 추측 금지. |
-| `action` | ✔ | 무엇을 바꿨는가. |
-| `result` | ✔ | 결과. 측정값이 있으면 `before → after`. 없으면 정성 서술. |
-| `skills` | ✔ | 원문에서 **실제로 확인된** 기술만. 문맥 추측 금지. |
-| `usableFor` | | 이 경험이 답할 수 있는 요구사항 유형. Fit Analysis의 매칭 힌트. |
-| `source` | ✔ | 이 Evidence가 **어디서 왔는지**. 아래 참조. |
+**모든 필드가 required다.** 근거가 없는 필드는 생략이 아니라 `null` 또는 빈 배열로 명시한다.
+"검사하지 않음"과 "검사했으나 근거 없음"을 구별하기 위해서다.
 
-`analysis` / `rootCause` / `usableFor`는 optional이지만, **비어 있는 것과 추측으로 채운 것은 전혀 다르다.**
-채우지 못한 필드는 `null`로 두고 사용자에게 질문한다. 조용히 생략하지 않는다.
+| 필드 | 없을 때 | 설명 |
+| --- | --- | --- |
+| `title` | — | 한 줄. 결과가 아니라 **문제를 식별하는 이름**. |
+| `category` | — | 분류 태그. Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등. 최소 1개. |
+| `context.project` | — | 어떤 프로젝트·조직에서 있었던 일인가. **"어디서"** 에 답한다. |
+| `problem` | — | 관찰된 현상. 가능하면 수치를 포함한다. |
+| `analysis` | `null` | 어떻게 조사했는가 (도구·방법). |
+| `rootCause` | `null` | 실제 원인. **원문이 원인을 밝히지 않았다면 반드시 `null`.** 추측 금지. |
+| `action` | — | 무엇을 바꿨는가. |
+| `result` | — | 결과 서술. |
+| `metrics` | `[]` | 정량 성과를 `name / before / after / unit`으로 분해. 원문에 수치가 없으면 빈 배열. **추정값 금지.** |
+| `skills` | — | 원문에서 **실제로 확인된** 기술만. 문맥 추측 금지. 최소 1개. |
+| `usableFor` | `[]` | 이 경험이 답할 수 있는 요구사항 유형. Fit Analysis의 매칭 힌트. |
+| `source` | — | 이 Evidence가 **어디서 왔는지**. 아래 참조. |
+
+`result`와 별개로 `metrics`를 두는 이유는 검증 때문이다.
+수치가 `result` 문자열 안에 묻혀 있으면 나중에 값이 변형됐는지(`341 → 0`이 "대폭 감소"로 바뀌는 것)
+기계적으로 확인할 수 없다.
+
+`null`과 빈 배열은 **"확인했고 근거가 없었다"** 를 뜻한다.
+채우지 못한 필드는 사용자에게 질문한다. 조용히 넘어가지 않는다.
 
 ## `source` — 출처 추적
 

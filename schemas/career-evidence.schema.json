@@ -5,7 +5,21 @@
   "description": "사용자 경력에 대한 유일한 사실 출처. 정본 정의는 docs/01-domain/career-evidence.md",
   "type": "object",
   "additionalProperties": false,
-  "required": ["title", "category", "context", "problem", "action", "result", "skills", "source"],
+  "required": [
+    "title",
+    "category",
+    "context",
+    "problem",
+    "analysis",
+    "rootCause",
+    "action",
+    "result",
+    "metrics",
+    "skills",
+    "usableFor",
+    "source"
+  ],
+  "$comment": "모든 필드가 required다. '검사하지 않음'과 '검사했으나 근거 없음'을 구별하기 위해, 근거가 없는 필드는 생략이 아니라 null 또는 빈 배열로 명시한다. docs/01-domain/career-evidence.md 참조.",
   "properties": {
     "id": {
       "type": "string",
@@ -38,17 +52,17 @@
     "problem": { "type": "string", "minLength": 1 },
     "analysis": {
       "type": ["string", "null"],
-      "description": "원문에 조사 방법이 없으면 null. 추측 금지."
+      "description": "원문에 조사 방법이 없으면 null. 필드를 생략하지 않는다. 추측 금지."
     },
     "rootCause": {
       "type": ["string", "null"],
-      "description": "원문이 원인을 밝히지 않았다면 반드시 null. 그럴듯한 추측을 넣지 않는다."
+      "description": "원문이 원인을 밝히지 않았다면 반드시 null. 필드를 생략하지 않는다. 그럴듯한 추측을 넣지 않는다."
     },
     "action": { "type": "string", "minLength": 1 },
     "result": { "type": "string", "minLength": 1 },
     "metrics": {
       "type": "array",
-      "description": "정량 성과. 원문에 수치가 없으면 빈 배열. 추정값을 넣지 않는다.",
+      "description": "정량 성과. 원문에 수치가 없으면 빈 배열([]). 필드를 생략하지 않는다. 추정값을 넣지 않는다.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -70,7 +84,7 @@
     "usableFor": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "이 경험이 답할 수 있는 요구사항 유형"
+      "description": "이 경험이 답할 수 있는 요구사항 유형. 판단할 수 없으면 빈 배열([]). 필드를 생략하지 않는다."
     },
     "source": {
       "type": "object",

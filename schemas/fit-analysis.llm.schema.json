@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://careeros.dev/schemas/fit-analysis.llm.schema.json",
+  "title": "FitAnalysisLlmOutput",
+  "description": "LLM에게 요청하는 응답 스키마. 관련성 평가만 담당한다. totalScore / weight / score는 여기에 존재하지 않으며, 물어보지 않으므로 만들어낼 수 없다. 근거: docs/adr/0002-fit-score-computed-by-system-not-llm.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["components", "strengths", "insufficientEvidence"],
+  "properties": {
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiredSkillMatch",
+        "experienceMatch",
+        "projectEvidence",
+        "domainMatch",
+        "careerLevel",
+        "preferredQualification"
+      ],
+      "properties": {
+        "requiredSkillMatch": { "$ref": "#/$defs/relevanceAssessment" },
+        "experienceMatch": { "$ref": "#/$defs/relevanceAssessment" },
+        "projectEvidence": { "$ref": "#/$defs/relevanceAssessment" },
+        "domainMatch": { "$ref": "#/$defs/relevanceAssessment" },
+        "careerLevel": { "$ref": "#/$defs/relevanceAssessment" },
+        "preferredQualification": { "$ref": "#/$defs/relevanceAssessment" }
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/judgement" },
+      "description": "연결할 Evidence가 없으면 강점으로 쓰지 않는다. insufficientEvidence로 보낸다."
+    },
+    "weaknesses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/judgement" },
+      "description": "관련 Evidence는 있으나 수준이 낮은 항목"
+    },
+    "insufficientEvidence": {
+      "type": "array",
+      "description": "'못한다'가 아니라 '판단할 데이터가 없다'. 둘을 섞지 않는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement"],
+        "properties": {
+          "requirement": { "type": "string" },
+          "note": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relevanceAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relevance", "evidenceRefs", "explanation"],
+      "properties": {
+        "relevance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "LLM이 평가하는 유일한 값. 0~1."
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^CE-[0-9]{5}$" },
+          "description": "실재하는 Career Evidence id만. 존재하지 않는 id는 backend가 거부한다."
+        },
+        "explanation": {
+          "type": ["string", "null"],
+          "description": "왜 이 relevance인가. 근거가 없으면 null이 아니라 relevance 0 + 빈 evidenceRefs."
+        }
+      }
+    },
+    "judgement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement", "evidenceRefs"],
+      "properties": {
+        "requirement": { "type": "string" },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^CE-[0-9]{5}$" }
+        },
+        "explanation": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

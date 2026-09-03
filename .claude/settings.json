@@ -8,9 +8,6 @@
       "Bash(git add:*)",
       "Bash(git branch:*)",
       "Bash(ls:*)",
-      "Bash(cat:*)",
-      "Bash(find:*)",
-      "Bash(grep:*)",
       "Bash(./gradlew test:*)",
       "Bash(./gradlew build:*)",
       "Bash(pnpm install:*)",
@@ -22,7 +19,15 @@
       "Read(./**/.env)",
       "Read(./**/.env.*)",
       "Read(./**/*.pem)",
-      "Read(./**/secrets/**)"
+      "Read(./**/*.key)",
+      "Read(./**/secrets/**)",
+      "Bash(cat:*.env*)",
+      "Bash(cat:*secrets*)",
+      "Bash(cat:*.pem)",
+      "Bash(cat:*.key)",
+      "Bash(type:*.env*)",
+      "Bash(printenv:*)",
+      "Bash(env)"
     ]
   }
 }
