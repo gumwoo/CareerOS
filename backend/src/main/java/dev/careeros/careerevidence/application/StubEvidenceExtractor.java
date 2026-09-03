@@ -18,9 +18,15 @@ import java.time.format.DateTimeFormatter;
  *
  * <p>다만 {@code source.excerpt}만은 원문에서 그대로 잘라낸다.
  * 그래야 {@link EvidenceDraftValidator}의 원문 대조가 형식이 아니라 실제로 동작하는지 확인된다.
+ *
+ * <p><b>{@code stub} 프로파일에서만 등록된다.</b> 이전에는 {@code @Profile("!llm")}이라
+ * 프로파일을 지정하지 않으면 스텁이 기본값이었고, 운영에서 프로파일을 빠뜨리면
+ * {@code [STUB] Unknown project}가 조용히 CONFIRMED 사실이 될 수 있었다.
+ * 지금은 기본 프로파일에 {@code EvidenceExtractor} 빈이 없어 <b>기동 자체가 실패한다.</b>
+ * 잘못된 Evidence를 마지막 문에서 거르는 것보다 애초에 만들어지지 않게 하는 편이 낫다.
  */
 @Component
-@Profile("!llm")
+@Profile("stub")
 public class StubEvidenceExtractor implements EvidenceExtractor {
 
     private static final int MAX_EXCERPT_LENGTH = 300;
@@ -29,17 +35,17 @@ public class StubEvidenceExtractor implements EvidenceExtractor {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public String extractDraftJson(SourceInput sourceInput) {
+    public String extractDraftsJson(SourceInput sourceInput) {
         String excerpt = verbatimExcerpt(sourceInput.getRawText());
 
         ObjectNode draft = objectMapper.createObjectNode();
         draft.put("title", "[STUB] " + firstLine(sourceInput.getRawText()));
 
-        ArrayNode categories = draft.putArray("category");
-        categories.add("[STUB] Uncategorized");
+        // 스텁은 원문을 분석하지 않는다. 빈 배열이 허용되므로 분류를 지어내지 않는다.
+        draft.putArray("category");
 
         ObjectNode context = draft.putObject("context");
-        context.put("project", "[STUB] Unknown project");
+        context.put("project", "[STUB] not extracted");
         context.putNull("role");
         context.putNull("period");
         context.putNull("teamSize");
@@ -52,8 +58,7 @@ public class StubEvidenceExtractor implements EvidenceExtractor {
         draft.put("result", "[STUB] not extracted");
         draft.putArray("metrics");
 
-        ArrayNode skills = draft.putArray("skills");
-        skills.add("[STUB] Unknown");
+        draft.putArray("skills");
 
         draft.putArray("usableFor");
 
@@ -64,8 +69,12 @@ public class StubEvidenceExtractor implements EvidenceExtractor {
         source.put("url", sourceInput.getUrl());
         source.put("capturedAt", DateTimeFormatter.ISO_INSTANT.format(sourceInput.getCapturedAt()));
 
+        // 스텁은 원문을 쪼개지 못하므로 항상 1건이다. 실제 추출기는 여러 건을 낼 수 있다.
+        ArrayNode drafts = objectMapper.createArrayNode();
+        drafts.add(draft);
+
         try {
-            return objectMapper.writeValueAsString(draft);
+            return objectMapper.writeValueAsString(drafts);
         } catch (Exception e) {
             throw new EvidenceExtractionException("Cannot serialize stub draft: " + e.getMessage());
         }

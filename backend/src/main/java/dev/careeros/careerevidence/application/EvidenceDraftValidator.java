@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -69,12 +71,35 @@ public class EvidenceDraftValidator {
     }
 
     /**
-     * @return 스키마와 원문 대조를 모두 통과한 초안
-     * @throws EvidenceExtractionException 통과하지 못한 경우. 저장하지 않는다.
+     * 추출 결과 배열 전체를 검증한다.
+     *
+     * <p><b>하나라도 통과하지 못하면 전체를 거부한다.</b> 일부만 저장하면
+     * "모델이 무엇을 냈는가"가 흐려지고, 사용자는 걸러진 항목이 있었다는 사실조차 모른다.
+     *
+     * @return 검증을 통과한 초안 목록. 추출할 경험이 없었으면 빈 목록.
+     * @throws EvidenceExtractionException 하나라도 통과하지 못한 경우. 아무것도 저장하지 않는다.
      */
-    public JsonNode validate(String draftJson, SourceInput sourceInput) {
-        JsonNode draft = parse(draftJson);
+    public List<JsonNode> validateAll(String draftsJson, SourceInput sourceInput) {
+        JsonNode drafts = parse(draftsJson);
+        if (!drafts.isArray()) {
+            throw new EvidenceExtractionException(
+                    "Extractor must return a JSON array of drafts, got: " + drafts.getNodeType());
+        }
 
+        List<JsonNode> validated = new ArrayList<>();
+        int index = 0;
+        for (JsonNode draft : drafts) {
+            try {
+                validated.add(validateOne(draft, sourceInput));
+            } catch (EvidenceExtractionException e) {
+                throw new EvidenceExtractionException("drafts[" + index + "]: " + e.getMessage());
+            }
+            index++;
+        }
+        return validated;
+    }
+
+    private JsonNode validateOne(JsonNode draft, SourceInput sourceInput) {
         Set<ValidationMessage> violations = schema.validate(draft);
         if (!violations.isEmpty()) {
             String detail = violations.stream()
@@ -89,9 +114,9 @@ public class EvidenceDraftValidator {
         return draft;
     }
 
-    private JsonNode parse(String draftJson) {
+    private JsonNode parse(String draftsJson) {
         try {
-            return objectMapper.readTree(draftJson);
+            return objectMapper.readTree(draftsJson);
         } catch (IOException e) {
             throw new EvidenceExtractionException("Draft is not valid JSON: " + e.getMessage());
         }

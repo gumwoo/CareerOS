@@ -95,6 +95,8 @@ CI          .github/workflows/contracts.yml
 | 12 | 공고의 우대사항을 필수요건으로 옮길 수 없다 | `requiredSkills` / `preferredSkills` 분리 | 계약만 (구현 전) |
 | 13 | 생성 문장은 Evidence Reference를 정확히 1개 가진다 | — | **미구현** (ADR-0004) |
 | 14 | 실행되어야 하는 스크립트는 실행 비트를 유지한다 | `check_executables_keep_exec_bit` | 적용됨 |
+| 15 | 스텁 추출기는 기본 프로파일에서 등록되지 않는다 | `@Profile("stub")` + `StubExtractorProfileTest` | 적용됨 |
+| 16 | 필수 개수 제약으로 모델에게 지어낼 압력을 주지 않는다 | `skills`/`category` `minItems` 제거 | 적용됨 |
 
 9~12는 계약에는 있으나 강제할 코드가 아직 없다. 해당 기능을 구현할 때
 가드와 메타테스트를 **같은 커밋에서** 추가한다.

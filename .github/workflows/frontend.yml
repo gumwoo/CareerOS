@@ -1,15 +1,14 @@
 name: Frontend
 
+#
+# 경로 필터를 걸지 않는다. required status check 로 걸려면 모든 PR 에서 리포트되어야 하는데,
+# 경로 필터가 있으면 해당 경로를 건드리지 않은 PR 에서 체크가 아예 보고되지 않아
+# "Expected — Waiting for status" 로 머지가 영구히 막힌다.
+# 이 저장소 규모에서는 전부 돌려도 2~3분이라 게이트가 되는 값이 더 크다.
 on:
   push:
     branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
   pull_request:
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
 
 defaults:
   run:

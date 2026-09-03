@@ -34,11 +34,10 @@
     },
     "category": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "string"
       },
-      "description": "Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등"
+      "description": "Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등. 판단할 수 없으면 빈 배열([]). 필드를 생략하지 않는다."
     },
     "context": {
       "type": "object",
@@ -135,11 +134,10 @@
     },
     "skills": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "string"
       },
-      "description": "원문에서 실제로 확인된 기술만. 문맥 추측 금지."
+      "description": "원문에서 실제로 확인된 기술만. 문맥 추측 금지. 기술명이 드러나지 않는 경험(협업·리딩·요구사항 분석 등)이면 빈 배열([]). 최소 1개를 요구하면 모델이 제약을 만족시키려 기술명을 지어낸다."
     },
     "usableFor": {
       "type": "array",

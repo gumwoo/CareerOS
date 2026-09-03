@@ -82,7 +82,7 @@ source:
 | 필드 | 없을 때 | 설명 |
 | --- | --- | --- |
 | `title` | — | 한 줄. 결과가 아니라 **문제를 식별하는 이름**. |
-| `category` | — | 분류 태그. Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등. 최소 1개. |
+| `category` | `[]` | 분류 태그. Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등. |
 | `context.project` | — | 어떤 프로젝트·조직에서 있었던 일인가. **"어디서"** 에 답한다. |
 | `context.role` | `null` | 그 안에서 맡은 역할. |
 | `context.period` | `null` | 기간. |
@@ -93,7 +93,7 @@ source:
 | `action` | — | 무엇을 바꿨는가. |
 | `result` | — | 결과 서술. |
 | `metrics` | `[]` | 정량 성과를 `name / before / after / unit`으로 분해. 원문에 수치가 없으면 빈 배열. **추정값 금지.** 단위가 없으면 `unit: null`. |
-| `skills` | — | 원문에서 **실제로 확인된** 기술만. 문맥 추측 금지. 최소 1개. |
+| `skills` | `[]` | 원문에서 **실제로 확인된** 기술만. 문맥 추측 금지. 기술명이 드러나지 않는 경험(협업·리딩·요구사항 분석)이면 빈 배열. |
 | `usableFor` | `[]` | 이 경험이 답할 수 있는 요구사항 유형. Fit Analysis의 매칭 힌트. |
 | `source` | — | 이 Evidence가 **어디서 왔는지**. 아래 참조. |
 
@@ -103,6 +103,25 @@ source:
 
 `null`과 빈 배열은 **"확인했고 근거가 없었다"** 를 뜻한다.
 채우지 못한 필드는 사용자에게 질문한다. 조용히 넘어가지 않는다.
+
+`skills`와 `category`에 최소 개수를 요구하지 않는 이유도 같다.
+**반드시 채워야 하는 칸은 모델에게 지어낼 압력이 된다.** 원문에 기술명이 없으면
+모델은 제약을 만족시키려고 하나를 만들어낸다. 그것이 이 제품이 막으려는 것이다.
+
+## 한 원문에서 여러 개
+
+이력서나 프로젝트 설명 하나에는 성능 개선·장애 분석·협업처럼
+독립적인 경험이 여러 개 들어 있는 것이 정상이다.
+
+```text
+SourceInput 1개  ->  CareerEvidence N개
+```
+
+하나로 뭉치면 Fit Analysis에서 공고별로 골라 쓸 수 없다.
+추출할 경험이 없으면 **빈 목록**이다. 억지로 하나를 만들지 않는다.
+
+검증은 전부-또는-전무다. 하나라도 계약을 어기면 아무것도 저장하지 않는다.
+일부만 저장하면 걸러진 항목이 있었다는 사실이 사용자에게 보이지 않는다.
 
 ## `source` — 출처 추적
 
