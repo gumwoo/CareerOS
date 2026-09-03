@@ -19,7 +19,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class EvidenceDraftValidatorTest {
 
     private static final String RAW_TEXT =
-            "다중 SSE 연결에서 최대 14초 지연이 발생했고, JFR로 분석해서 락 경합을 찾았습니다.";
+            "다중 SSE 연결에서 최대 14초 지연이 발생했고, JFR로 분석해서 락 경합을 찾았습니다. "
+                    + "JavaMonitorEnter가 341에서 0으로 줄었습니다.";
 
     private EvidenceDraftValidator validator;
     private SourceInput sourceInput;
@@ -75,13 +76,66 @@ class EvidenceDraftValidatorTest {
     @Test
     @DisplayName("excerpt가 원문에 없으면 거부한다 — 스키마는 이걸 잡지 못한다")
     void rejectsFabricatedExcerpt() {
+        // 길이는 충분하지만 원문에 없는 문장. "짧아서" 거부되는 것과 구별하기 위해서다.
         String fabricated = draft().replace(
                 "다중 SSE 연결에서 최대 14초 지연이 발생했고",
-                "SSE 성능을 크게 개선하였습니다");
+                "SSE 성능 문제를 분석하여 병목 구간을 제거하였습니다");
 
         assertThatThrownBy(() -> validator.validate(fabricated, sourceInput))
                 .isInstanceOf(EvidenceExtractionException.class)
                 .hasMessageContaining("verbatim");
+    }
+
+    @Test
+    @DisplayName("원문에 있는 수치를 담은 metrics는 통과한다")
+    void acceptsMetricsBackedBySource() {
+        String withMetrics = draft().replace("\"metrics\": [],",
+                """
+                "metrics": [{"name": "JavaMonitorEnter", "before": "341", "after": "0", "unit": null}],
+                """);
+
+        assertThatCode(() -> validator.validate(withMetrics, sourceInput)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("원문에 없는 수치를 만들어내면 거부한다 — 스키마는 이걸 잡지 못한다")
+    void rejectsFabricatedMetrics() {
+        String mutated = draft().replace("\"metrics\": [],",
+                """
+                "metrics": [{"name": "JavaMonitorEnter", "before": "1400", "after": "0", "unit": null}],
+                """);
+
+        assertThatThrownBy(() -> validator.validate(mutated, sourceInput))
+                .isInstanceOf(EvidenceExtractionException.class)
+                .hasMessageContaining("1400");
+    }
+
+    @Test
+    @DisplayName("excerpt가 너무 짧으면 거부한다 — 한 글자는 어떤 원문에도 들어 있다")
+    void rejectsTooShortExcerpt() {
+        String tiny = draft().replace("다중 SSE 연결에서 최대 14초 지연이 발생했고", "다중");
+
+        assertThatThrownBy(() -> validator.validate(tiny, sourceInput))
+                .isInstanceOf(EvidenceExtractionException.class);
+    }
+
+    @Test
+    @DisplayName("source.type이 실제 입력 경로와 다르면 거부한다")
+    void rejectsMismatchedSourceType() {
+        String mismatched = draft().replace("\"type\": \"USER_INPUT\"", "\"type\": \"RESUME_UPLOAD\"");
+
+        assertThatThrownBy(() -> validator.validate(mismatched, sourceInput))
+                .isInstanceOf(EvidenceExtractionException.class)
+                .hasMessageContaining("source.type");
+    }
+
+    @Test
+    @DisplayName("capturedAt이 날짜 형식이 아니면 500이 아니라 계약 위반으로 거부한다")
+    void rejectsMalformedTimestamp() {
+        String malformed = draft().replaceAll("\"capturedAt\": \"[^\"]+\"", "\"capturedAt\": \"어제\"");
+
+        assertThatThrownBy(() -> validator.validate(malformed, sourceInput))
+                .isInstanceOf(EvidenceExtractionException.class);
     }
 
     @Test

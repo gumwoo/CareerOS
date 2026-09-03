@@ -242,7 +242,25 @@ public class CareerEvidence {
             return this;
         }
 
-        public CareerEvidence build() {
+        /**
+         * 원문을 넘겨야만 생성된다.
+         *
+         * <p>excerpt 원문 대조를 application 계층에만 두면, 리포지토리를 직접 쓰는
+         * 다음 기능(배치 임포트, GitHub 연동 등)이 그 검증을 건너뛸 수 있다.
+         * 도메인이 원문을 요구하면 우회 경로 자체가 사라진다. (ADR-0003)
+         */
+        public CareerEvidence buildVerifiedAgainst(SourceInput sourceInput) {
+            if (sourceInput == null) {
+                throw new IllegalArgumentException("CareerEvidence requires the SourceInput it came from");
+            }
+            if (!sourceInput.getId().equals(sourceOriginId)) {
+                throw new IllegalArgumentException(
+                        "source.originId does not match the given SourceInput: " + sourceOriginId);
+            }
+            if (!sourceInput.contains(sourceExcerpt)) {
+                throw new IllegalArgumentException(
+                        "source.excerpt is not a verbatim fragment of the original text");
+            }
             return new CareerEvidence(this);
         }
     }

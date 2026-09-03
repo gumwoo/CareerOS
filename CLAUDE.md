@@ -21,6 +21,7 @@
 - Hallucination policy: @docs/03-architecture/hallucination-policy.md
 - Career Evidence model: @docs/01-domain/career-evidence.md
 - Glossary (naming): @docs/01-domain/glossary.md
+- Harness / invariants: [docs/03-architecture/harness.md](docs/03-architecture/harness.md)
 
 기능 구현 전에는 해당 문서를 먼저 읽는다. 문서 목록은 [docs/README.md](docs/README.md).
 아키텍처 결정의 근거는 [docs/adr/](docs/adr/)에 있다. 어긋나는 구현을 만들지 않는다.
@@ -45,11 +46,18 @@ schemas/     Agent 출력 검증용 JSON Schema (실행 가능한 계약)
 - LLM 호출은 Structured Output을 기본으로 하고, 응답은 `schemas/`로 검증한 뒤 도메인 객체로 변환한다.
   모델 응답을 그대로 DB에 저장하지 않는다.
 - `schemas/`와 `docs/`의 정본 정의는 함께 변경한다.
+- **실패를 발견하면 주의사항으로 남기지 않는다.** 불변식으로 적고, 가드로 강제하고,
+  가드가 실제로 잡는지 메타테스트로 확인하고, CI에 건다.
+  절차는 [harness.md](docs/03-architecture/harness.md).
 - 커밋은 Conventional Commits. `feat(fit):`, `fix(job):`, `docs:`, `chore(harness):`
 
 ## Validation
 
 ```bash
+# 계약 (cwd: 저장소 루트)
+python tools/check_contracts.py       # schemas/ 와 정본 문서의 정합성
+python tools/meta_test_contracts.py   # 검사가 실제로 위반을 잡는지
+
 # backend  (cwd: backend/)
 ./gradlew test              # 단위 테스트. Docker 불필요.
 ./gradlew integrationTest   # Testcontainers. Docker 필요.

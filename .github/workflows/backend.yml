@@ -1,0 +1,68 @@
+name: Backend
+
+# schemas/ 가 바뀌어도 돌린다. 계약은 backend 가 런타임에 강제하는 대상이므로
+# 계약 변경이 backend 를 깨뜨릴 수 있다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'schemas/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'schemas/**'
+      - '.github/workflows/backend.yml'
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  unit:
+    name: 단위 테스트 (Docker 불필요)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: ./gradlew test --no-daemon
+
+      - name: 테스트 리포트 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-unit-test-report
+          path: backend/build/reports/tests/test
+          if-no-files-found: ignore
+
+  integration:
+    name: 통합 테스트 (Testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Flyway 마이그레이션과 pgvector 확장까지 실제로 적용해 본다.
+      - run: ./gradlew integrationTest --no-daemon
+
+      - name: 테스트 리포트 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-integration-test-report
+          path: backend/build/reports/tests/integrationTest
+          if-no-files-found: ignore

@@ -11,7 +11,6 @@ import dev.careeros.careerevidence.infrastructure.SourceInputRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -61,7 +60,14 @@ public class CareerEvidenceService {
         String draftJson = extractor.extractDraftJson(sourceInput);
         JsonNode draft = validator.validate(draftJson, sourceInput);
 
-        CareerEvidence evidence = toEvidence(draft, sourceInput);
+        CareerEvidence evidence;
+        try {
+            evidence = toEvidence(draft, sourceInput);
+        } catch (IllegalArgumentException e) {
+            // 도메인 불변식 위반은 "클라이언트 요청이 잘못됨"(400)이 아니라
+            // "추출 결과가 계약을 어김"(422)이다. 둘을 섞으면 계약 위반율을 집계할 수 없다.
+            throw new EvidenceExtractionException("Draft violates a domain invariant: " + e.getMessage());
+        }
         return evidenceRepository.save(evidence);
     }
 
@@ -119,12 +125,15 @@ public class CareerEvidenceService {
                 .metrics(metrics)
                 .skills(toSet(draft, "skills"))
                 .usableFor(toSet(draft, "usableFor"))
-                .source(SourceType.valueOf(source.path("type").asText()),
+                // type / originId / url / capturedAt 은 추출기 출력이 아니라 SourceInput 에서 온다.
+                // 추출기에게 물어볼 이유가 없는 값이고, 물어보면 실제 입력 경로와 어긋날 수 있다.
+                // (excerpt 만 추출기가 고른 값이고, 그래서 원문 대조 대상이다)
+                .source(sourceInput.getType(),
                         sourceInput.getId(),
                         source.path("excerpt").asText(),
-                        textOrNull(source, "url"),
-                        Instant.parse(source.path("capturedAt").asText()))
-                .build();
+                        sourceInput.getUrl(),
+                        sourceInput.getCapturedAt())
+                .buildVerifiedAgainst(sourceInput);
     }
 
     private static Set<String> toSet(JsonNode node, String field) {
