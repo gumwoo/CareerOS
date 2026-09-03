@@ -49,7 +49,34 @@ schemas/     Agent 출력 검증용 JSON Schema (실행 가능한 계약)
 - **실패를 발견하면 주의사항으로 남기지 않는다.** 불변식으로 적고, 가드로 강제하고,
   가드가 실제로 잡는지 메타테스트로 확인하고, CI에 건다.
   절차는 [harness.md](docs/03-architecture/harness.md).
-- 커밋은 Conventional Commits. `feat(fit):`, `fix(job):`, `docs:`, `chore(harness):`
+
+## 브랜치 / 커밋 / PR
+
+- **기본 브랜치에 직접 커밋하지 않는다.** 브랜치를 파서 PR로 올린다.
+- 브랜치 이름은 `<type>/<kebab-case-요약>`. type은 `feat` / `fix` / `docs` / `chore` / `imp`.
+
+  ```text
+  feat/evidence-numeric-guard
+  fix/excerpt-length-bypass
+  docs/adr006-job-parse
+  ```
+
+- 커밋 제목은 Conventional Commits + 한국어 평서문.
+  "무엇을 했다"가 아니라 **무엇이 문제였고 어떻게 바로잡는지**를 담는다.
+
+  ```text
+  fix(evidence): excerpt 한 글자가 원문 대조를 통과하던 구멍을 막는다
+  docs(adr): ADR-004의 카디널리티 설명이 Java·DB 예시와 어긋난다
+  ```
+
+- 커밋 본문에는 **확인에 쓴 명령과 그 출력**을 남긴다. 수치를 주장하면 근거를 같이 쓴다.
+- 커밋 메시지·PR 본문에 `Co-Authored-By: Claude ...` 트레일러나 "Generated with Claude Code"
+  문구를 **넣지 않는다.**
+- PR 본문은 [`.github/pull_request_template.md`](.github/pull_request_template.md)의
+  **7개 섹션을 전부** 채운다. 해당 없으면 "해당 없음"으로 명시하고 섹션을 삭제하지 않는다.
+  파일 나열이 아니라 동작·의도 중심으로 쓴다.
+- `gh pr create --body-file`로 생성한다. 빈 본문 금지.
+- 브랜치에 커밋을 더 얹으면 **PR 본문도 함께 갱신**해 실제 내용과 일치시킨다.
 
 ## Validation
 
