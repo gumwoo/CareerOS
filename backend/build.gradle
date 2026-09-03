@@ -55,6 +55,10 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs << '-Xlint:deprecation'
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	description = 'Docker 없이 도는 단위 테스트'

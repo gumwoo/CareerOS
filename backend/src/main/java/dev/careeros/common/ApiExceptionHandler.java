@@ -17,7 +17,7 @@ public class ApiExceptionHandler {
      */
     @ExceptionHandler(EvidenceExtractionException.class)
     public ProblemDetail handleExtraction(EvidenceExtractionException e) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, e.getMessage());
         problem.setTitle("Evidence draft rejected");
         return problem;
     }
