@@ -23,6 +23,9 @@ import java.util.UUID;
 @Table(name = "source_inputs")
 public class SourceInput {
 
+    /** excerpt가 "근거가 된 원문 구절"로 인정받기 위한 최소 길이. schema의 minLength와 맞춘다. */
+    public static final int MIN_EXCERPT_LENGTH = 20;
+
     @Id
     private UUID id;
 
@@ -76,7 +79,24 @@ public class SourceInput {
         if (excerpt == null || excerpt.isBlank()) {
             return false;
         }
+        if (normalize(excerpt).length() < MIN_EXCERPT_LENGTH) {
+            // 한두 글자는 어떤 원문에도 들어 있다. 그런 excerpt는 대조를 형식적으로만 통과시킨다.
+            return false;
+        }
         return normalize(rawText).contains(normalize(excerpt));
+    }
+
+    /**
+     * 주장된 수치가 전부 원문에 있는가.
+     *
+     * @see NumericFacts
+     */
+    public boolean supportsNumbersIn(String claimed) {
+        return NumericFacts.allPresentIn(claimed, rawText);
+    }
+
+    public java.util.Set<String> numbersNotInSource(String claimed) {
+        return NumericFacts.notFoundIn(claimed, rawText);
     }
 
     private static String normalize(String text) {

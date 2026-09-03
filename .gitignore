@@ -38,3 +38,7 @@ next-env.d.ts
 
 # Gradle
 !gradle/wrapper/gradle-wrapper.properties
+
+# Python
+__pycache__/
+*.pyc

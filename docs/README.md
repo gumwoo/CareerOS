@@ -59,6 +59,7 @@
 | [tech-stack.md](03-architecture/tech-stack.md) | 기술 스택 |
 | [ai-orchestration.md](03-architecture/ai-orchestration.md) | 내부 AX 구조 · Agent 역할 |
 | [hallucination-policy.md](03-architecture/hallucination-policy.md) | **Hallucination 방지 정책** — AI 기능의 하드 제약 |
+| [harness.md](03-architecture/harness.md) | **검증 하네스** — 실패를 규칙으로 승격하는 절차와 현재 불변식 목록 |
 | [data-model.md](03-architecture/data-model.md) | 초기 DB 설계 |
 
 ## 04. Product — 자주 변하는 것
