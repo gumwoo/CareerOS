@@ -1,21 +1,13 @@
 name: Contracts
 
 # 계약(schemas/)과 정본 문서가 조용히 갈라지는 것을 막는다.
-# 코드를 건드리지 않아도 계약만 바뀌면 돌아야 하므로 별도 job으로 둔다.
+#
+# 경로 필터를 걸지 않는다. 실행 비트 검사처럼 저장소 전체를 보는 규칙이 있어서
+# "backend/ 아래에 .sh 를 추가"만 해도 돌아야 하고, 8초짜리라 항상 돌려도 싸다.
 on:
   push:
     branches: [main]
-    paths:
-      - 'schemas/**'
-      - 'docs/**'
-      - 'tools/**'
-      - '.github/workflows/contracts.yml'
   pull_request:
-    paths:
-      - 'schemas/**'
-      - 'docs/**'
-      - 'tools/**'
-      - '.github/workflows/contracts.yml'
 
 jobs:
   contracts:

@@ -56,6 +56,27 @@ Meta Test   EvidenceDraftValidatorTest.rejectsFabricatedMetrics()
 CI          .github/workflows/backend.yml
 ```
 
+### 예 — 실행 비트 유실
+
+```text
+Incident    PR #1 의 backend job 두 개가 7초 만에 실패했다.
+            ./gradlew: Permission denied (exit 126)
+            Windows에서 zip을 풀어 커밋해 실행 비트가 100644로 들어갔다.
+            Windows 로컬에서는 정상 동작해서 CI에 올라가기 전까지 드러나지 않았다.
+   ↓
+Invariant   실행되어야 하는 스크립트는 실행 비트를 유지한다.
+   ↓
+Guard       check_contracts.check_executables_keep_exec_bit()
+   ↓
+Meta Test   meta_test_contracts.FUNCTION_CASES — 모드를 100644로 위조해 확인
+   ↓
+CI          .github/workflows/contracts.yml
+```
+
+승격 기준으로 따지면: Windows에서 파일을 새로 만들 때마다 재발하는 **반복 클래스**이고,
+로컬에서는 **무증상**이며, 파일명 패턴이 명확해 **오탐이 없고**, 검사가 몇 줄이라 **싸다**.
+네 가지를 모두 만족한다.
+
 ## 현재 불변식
 
 | # | 불변식 | 강제 위치 | 상태 |
@@ -73,6 +94,7 @@ CI          .github/workflows/backend.yml
 | 11 | "근거 부족"과 "역량 낮음"을 구분한다 | `insufficientEvidence` 별도 필드 | 계약만 (구현 전) |
 | 12 | 공고의 우대사항을 필수요건으로 옮길 수 없다 | `requiredSkills` / `preferredSkills` 분리 | 계약만 (구현 전) |
 | 13 | 생성 문장은 Evidence Reference를 정확히 1개 가진다 | — | **미구현** (ADR-0004) |
+| 14 | 실행되어야 하는 스크립트는 실행 비트를 유지한다 | `check_executables_keep_exec_bit` | 적용됨 |
 
 9~12는 계약에는 있으나 강제할 코드가 아직 없다. 해당 기능을 구현할 때
 가드와 메타테스트를 **같은 커밋에서** 추가한다.

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+import subprocess
 import sys
 
 # 콘솔 코드페이지와 무관하게 출력한다 (Windows cp949 대응)
@@ -215,6 +216,40 @@ def check_job_posting_keeps_required_and_preferred_apart() -> None:
         fail("job-required-preferred", "rawContent 가 required 가 아니다. 원문 없이는 검증할 수 없다")
 
 
+def git_file_modes() -> dict[str, str]:
+    """git 인덱스에 기록된 파일 모드. 100644 = 일반, 100755 = 실행 가능."""
+    output = subprocess.run(
+        ["git", "ls-files", "-s"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    ).stdout
+    modes: dict[str, str] = {}
+    for line in output.splitlines():
+        meta, _, path = line.partition("	")
+        modes[path] = meta.split()[0]
+    return modes
+
+
+def check_executables_keep_exec_bit(modes: dict[str, str] | None = None) -> None:
+    """실행되어야 하는 스크립트가 실행 비트를 잃지 않았는가.
+
+    Windows에서 zip을 풀거나 파일을 새로 만들면 실행 비트가 붙지 않는데,
+    Windows 로컬에서는 그래도 잘 돌아간다. Linux CI에 올라가서야
+    `./gradlew: Permission denied` (exit 126) 로 처음 드러난다.
+
+    실제 사고: PR #1 의 backend job 두 개가 이 이유로 7초 만에 실패했다.
+    무증상이고, 반복해서 생길 수 있고, 오탐이 없고, 검사가 싸다.
+    """
+    if modes is None:
+        modes = git_file_modes()
+
+    for path, mode in sorted(modes.items()):
+        name = path.rsplit("/", 1)[-1]
+        if name == "gradlew" or name.endswith(".sh"):
+            if mode != "100755":
+                fail("exec-bit", f"{path} 에 실행 비트가 없다 (mode {mode}). "
+                                 "`git update-index --chmod=+x <path>` 로 고친다")
+
+
 def check_doc_links_resolve() -> None:
     targets = list(DOCS.rglob("*.md")) + list(SCHEMAS.glob("*.md")) + [ROOT / "CLAUDE.md"]
     targets += list((ROOT / ".claude").rglob("*.md"))
@@ -240,6 +275,7 @@ CHECKS = [
     check_judgements_require_evidence,
     check_weakness_and_no_evidence_are_separate,
     check_job_posting_keeps_required_and_preferred_apart,
+    check_executables_keep_exec_bit,
     check_doc_links_resolve,
 ]
 

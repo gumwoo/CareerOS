@@ -24,6 +24,9 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHECKER = ROOT / "tools" / "check_contracts.py"
 
+sys.path.insert(0, str(ROOT / "tools"))
+import check_contracts  # noqa: E402
+
 
 def remove_required(field: str):
     def mutate(schema: dict) -> None:
@@ -77,6 +80,34 @@ CASES = [
 ]
 
 
+# 스키마 파일을 바꿔서는 재현할 수 없는 규칙들. 검사 함수를 직접 불러 확인한다.
+# (설명, 검사 함수, 규칙을 어기는 입력)
+FUNCTION_CASES = [
+    (
+        "실행 비트 · gradlew 가 100644 로 커밋되면",
+        check_contracts.check_executables_keep_exec_bit,
+        {"backend/gradlew": "100644"},
+    ),
+    (
+        "실행 비트 · .sh 스크립트가 100644 로 커밋되면",
+        check_contracts.check_executables_keep_exec_bit,
+        {"scripts/bootstrap.sh": "100644"},
+    ),
+]
+
+
+def function_case_caught(check, bad_input) -> bool:
+    """검사 함수를 잘못된 입력으로 직접 호출해 실패를 내는지 본다."""
+    saved = list(check_contracts.failures)
+    check_contracts.failures.clear()
+    try:
+        check(bad_input)
+        return bool(check_contracts.failures)
+    finally:
+        check_contracts.failures.clear()
+        check_contracts.failures.extend(saved)
+
+
 def checker_fails() -> bool:
     return subprocess.run(
         [sys.executable, str(CHECKER)], capture_output=True
@@ -112,11 +143,17 @@ def main() -> int:
         print("\n원본 복원에 실패했다. git status 로 확인할 것.")
         return 1
 
+    for description, check, bad_input in FUNCTION_CASES:
+        caught = function_case_caught(check, bad_input)
+        print(f"  {'OK  ' if caught else 'MISS'}  {description}")
+        if not caught:
+            missed.append(description)
+
     if missed:
         print(f"\n하네스가 {len(missed)}건을 놓쳤다. 계약이 아니라 검사를 고쳐야 한다.")
         return 1
 
-    print(f"\n메타테스트 {len(CASES)}건 통과. 검사가 실제로 위반을 잡는다.")
+    print(f"\n메타테스트 {len(CASES) + len(FUNCTION_CASES)}건 통과. 검사가 실제로 위반을 잡는다.")
     return 0
 
 
