@@ -51,13 +51,19 @@ schemas/     Agent 출력 검증용 JSON Schema (실행 가능한 계약)
 
 ```bash
 # backend  (cwd: backend/)
-./gradlew test
+./gradlew test              # 단위 테스트. Docker 불필요.
+./gradlew integrationTest   # Testcontainers. Docker 필요.
 
 # frontend (cwd: frontend/)
 pnpm lint && pnpm build
 ```
 
-DB가 필요한 테스트는 Testcontainers를 쓴다. 로컬 개발용 DB는 `docker compose up -d postgres`.
+테스트는 두 계층으로 나뉜다. `src/test`는 Docker 없이 돌아야 하고,
+DB·컨테이너가 필요한 것은 `src/integrationTest`에 둔다.
+Fit Score 계산이나 excerpt 대조 같은 핵심 로직은 DB 없이 검증할 수 있어야 한다.
+
+로컬 개발용 DB는 `docker compose up -d postgres`.
+테스트 컨테이너와 docker-compose는 **같은 이미지**(`pgvector/pgvector:pg16`)를 쓴다.
 스키마는 **Flyway가 소유한다.** `ddl-auto: validate`이므로 Hibernate가 테이블을 만들지 않는다.
 엔티티를 바꾸면 `backend/src/main/resources/db/migration/`에 마이그레이션을 추가한다.
 

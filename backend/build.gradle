@@ -18,6 +18,22 @@ repositories {
 	mavenCentral()
 }
 
+// 테스트 계층 분리: ./gradlew test 는 Docker 없이 돌아간다.
+// DB/컨테이너가 필요한 테스트는 src/integrationTest 에 두고 ./gradlew integrationTest 로 돌린다.
+sourceSets {
+	integrationTest {
+		java.srcDir 'src/integrationTest/java'
+		resources.srcDir 'src/integrationTest/resources'
+		compileClasspath += sourceSets.main.output + sourceSets.test.output
+		runtimeClasspath += sourceSets.main.output + sourceSets.test.output
+	}
+}
+
+configurations {
+	integrationTestImplementation.extendsFrom testImplementation
+	integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -25,6 +41,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	// schemas/*.json 을 런타임에 실제로 검증하는 데 쓴다. (schemas/README.md)
+	implementation 'com.networknt:json-schema-validator:1.5.6'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
@@ -39,4 +57,22 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	description = 'Docker 없이 도는 단위 테스트'
+}
+
+// schemas/ 는 저장소 루트에 있는 정본이다. 복사본을 만들지 않고 빌드 시 가져온다.
+tasks.named('processResources') {
+	from("${rootDir}/../schemas") {
+		into 'schemas'
+		include '*.json'
+	}
+}
+
+tasks.register('integrationTest', Test) {
+	description = 'Testcontainers(Docker)가 필요한 통합 테스트'
+	group = 'verification'
+	testClassesDirs = sourceSets.integrationTest.output.classesDirs
+	classpath = sourceSets.integrationTest.runtimeClasspath
+	useJUnitPlatform()
+	shouldRunAfter tasks.named('test')
 }
