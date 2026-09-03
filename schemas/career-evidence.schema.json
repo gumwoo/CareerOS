@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://careeros.dev/schemas/career-evidence.schema.json",
+  "title": "CareerEvidence",
+  "description": "사용자 경력에 대한 유일한 사실 출처. 정본 정의는 docs/01-domain/career-evidence.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "category", "context", "problem", "action", "result", "skills", "source"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CE-[0-9]{5}$",
+      "description": "저장 시 시스템이 부여한다. LLM이 생성하지 않는다."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "결과가 아니라 문제를 식별하는 이름"
+    },
+    "category": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project"],
+      "properties": {
+        "project": { "type": "string", "minLength": 1 },
+        "role": { "type": ["string", "null"] },
+        "period": { "type": ["string", "null"] },
+        "teamSize": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "problem": { "type": "string", "minLength": 1 },
+    "analysis": {
+      "type": ["string", "null"],
+      "description": "원문에 조사 방법이 없으면 null. 추측 금지."
+    },
+    "rootCause": {
+      "type": ["string", "null"],
+      "description": "원문이 원인을 밝히지 않았다면 반드시 null. 그럴듯한 추측을 넣지 않는다."
+    },
+    "action": { "type": "string", "minLength": 1 },
+    "result": { "type": "string", "minLength": 1 },
+    "metrics": {
+      "type": "array",
+      "description": "정량 성과. 원문에 수치가 없으면 빈 배열. 추정값을 넣지 않는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "before", "after"],
+        "properties": {
+          "name": { "type": "string" },
+          "before": { "type": "string" },
+          "after": { "type": "string" },
+          "unit": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "원문에서 실제로 확인된 기술만. 문맥 추측 금지."
+    },
+    "usableFor": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "이 경험이 답할 수 있는 요구사항 유형"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "originId", "excerpt", "capturedAt"],
+      "description": "이 Evidence 레코드가 어떤 입력으로부터 만들어졌는가. context.project와 다르다.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["USER_INPUT", "RESUME_UPLOAD", "PROJECT_ENTRY", "EXTERNAL_URL"]
+        },
+        "originId": { "type": "string", "minLength": 1 },
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "description": "근거가 된 원문 구절 그대로. 요약·윤문 금지."
+        },
+        "url": { "type": ["string", "null"], "format": "uri" },
+        "capturedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

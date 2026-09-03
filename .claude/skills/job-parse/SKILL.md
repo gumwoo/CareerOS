@@ -6,7 +6,7 @@ description: 채용공고 원문(URL 본문, 붙여넣은 텍스트, PDF 추출 
 # 채용공고 구조화
 
 공고 원문을 Fit Analysis가 소비할 수 있는 형태로 변환한다.
-필드 정의는 `docs/02-features/job-import-analyzer.md`를 따른다.
+필드 정의는 `docs/02-features/job-import-analyzer.md`를 따르고, 출력은 `schemas/job-posting.schema.json`을 통과해야 한다.
 
 ## 절대 규칙
 

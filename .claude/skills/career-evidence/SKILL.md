@@ -7,6 +7,7 @@ description: 사용자의 경험 서술(프로젝트 설명, 이력서 문단, �
 
 원문 서술을 재사용 가능한 Career Evidence 단위로 분해한다.
 정본 스키마는 `docs/01-domain/career-evidence.md`이며, 작업 전 반드시 읽는다.
+검증용 계약은 `schemas/career-evidence.schema.json`이다. 출력은 이 스키마를 통과해야 한다.
 
 ## 절대 규칙
 

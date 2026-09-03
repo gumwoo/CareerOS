@@ -23,6 +23,20 @@
 | [domain-model.md](01-domain/domain-model.md) | 핵심 도메인 모델 |
 | [glossary.md](01-domain/glossary.md) | 용어 정의 (코드 네이밍의 기준) |
 
+## ADR — 되돌리면 제품이 바뀌는 결정
+
+| ADR | 결정 |
+| --- | --- |
+| [0001](adr/0001-record-architecture-decisions.md) | 아키텍처 결정을 ADR로 기록한다 |
+| [0002](adr/0002-fit-score-computed-by-system-not-llm.md) | Fit Score 최종 계산은 LLM이 아니라 backend가 한다 |
+| [0003](adr/0003-career-evidence-is-source-of-truth.md) | Career Evidence를 사용자 경력의 유일한 사실 출처로 삼는다 |
+| [0004](adr/0004-generated-claims-require-evidence-reference.md) | 생성된 경력 주장은 Evidence Reference를 필수로 가진다 |
+| [0005](adr/0005-pgvector-first.md) | Vector Search는 PostgreSQL + pgvector로 시작한다 |
+
+## 실행 가능한 계약
+
+문서가 아니라 런타임 검증에 쓰이므로 `docs/` 바깥에 있다. → [schemas/](../schemas/README.md)
+
 ## 02. Features
 
 | 문서 | 내용 |

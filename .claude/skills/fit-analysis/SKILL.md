@@ -6,7 +6,8 @@ description: 구조화된 채용공고와 사용자의 Career Evidence를 비교
 # Fit Analysis
 
 공고 요구사항과 Career Evidence를 매칭한다.
-산식 정본은 `docs/02-features/fit-analysis.md`.
+산식 정본은 `docs/02-features/fit-analysis.md`, 결정 근거는 `docs/adr/0002-fit-score-computed-by-system-not-llm.md`.
+출력 계약은 `schemas/fit-analysis.schema.json`이다.
 
 ## 절대 규칙 — 점수 계산 책임
 

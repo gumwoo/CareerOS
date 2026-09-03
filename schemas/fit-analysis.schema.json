@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://careeros.dev/schemas/fit-analysis.schema.json",
+  "title": "FitAnalysis",
+  "description": "공고 x Career Evidence 정합도 분석 결과. 정본은 docs/02-features/fit-analysis.md, 결정 근거는 ADR-0002",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jobPostingId", "components", "totalScore", "strengths", "insufficientEvidence", "recommendation"],
+  "properties": {
+    "jobPostingId": { "type": "string" },
+    "totalScore": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "backend가 components에서 계산한다. LLM 응답 스키마(fit-analysis.llm.schema.json)에는 이 필드가 없다."
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredSkillMatch", "experienceMatch", "projectEvidence", "domainMatch", "careerLevel", "preferredQualification"],
+      "properties": {
+        "requiredSkillMatch": { "$ref": "#/$defs/component" },
+        "experienceMatch": { "$ref": "#/$defs/component" },
+        "projectEvidence": { "$ref": "#/$defs/component" },
+        "domainMatch": { "$ref": "#/$defs/component" },
+        "careerLevel": { "$ref": "#/$defs/component" },
+        "preferredQualification": { "$ref": "#/$defs/component" }
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/judgement" },
+      "description": "연결된 Evidence가 없으면 강점으로 쓰지 않는다."
+    },
+    "weaknesses": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/judgement" },
+      "description": "관련 Evidence는 있으나 수준이 낮은 항목"
+    },
+    "insufficientEvidence": {
+      "type": "array",
+      "description": "'못한다'가 아니라 '데이터가 없다'. 사용자에게 다른 액션을 요구하므로 weaknesses와 분리한다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement"],
+        "properties": {
+          "requirement": { "type": "string" },
+          "note": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "reasons"],
+      "properties": {
+        "decision": { "type": "string", "enum": ["YES", "CONDITIONAL", "NO"] },
+        "reasons": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "risks": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "computedAt": { "type": "string", "format": "date-time" },
+    "modelVersion": {
+      "type": ["string", "null"],
+      "description": "재현을 위해 relevance 평가에 사용한 모델·프롬프트 버전을 기록한다."
+    }
+  },
+  "$defs": {
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "weight", "relevance", "evidenceRefs"],
+      "properties": {
+        "relevance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "LLM이 평가하는 유일한 값"
+        },
+        "weight": {
+          "type": "integer",
+          "description": "backend 상수. 프롬프트에 넣지 않는다."
+        },
+        "score": {
+          "type": "number",
+          "description": "relevance * weight. backend가 계산한다."
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^CE-[0-9]{5}$" }
+        },
+        "explanation": { "type": ["string", "null"] }
+      }
+    },
+    "judgement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement", "evidenceRefs"],
+      "properties": {
+        "requirement": { "type": "string" },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^CE-[0-9]{5}$" },
+          "description": "비어 있을 수 없다. 근거 없는 판단은 insufficientEvidence로 간다."
+        },
+        "explanation": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

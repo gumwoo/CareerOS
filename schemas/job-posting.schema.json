@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://careeros.dev/schemas/job-posting.schema.json",
+  "title": "JobPosting",
+  "description": "구조화된 채용공고. 정본 정의는 docs/02-features/job-import-analyzer.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["company", "position", "requiredSkills", "preferredSkills", "responsibilities", "rawContent"],
+  "properties": {
+    "id": { "type": "string" },
+    "company": { "type": "string", "minLength": 1 },
+    "position": { "type": "string", "minLength": 1 },
+    "role": {
+      "type": ["string", "null"],
+      "description": "정규화된 직무. Backend Developer / Platform Engineer 등"
+    },
+    "seniority": {
+      "type": ["string", "null"],
+      "enum": ["Junior", "Mid", "Senior", null]
+    },
+    "experienceRequirement": { "type": ["string", "null"] },
+    "requiredSkills": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "공고의 '자격요건'. 우대사항을 여기로 옮기지 않는다."
+    },
+    "preferredSkills": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "공고의 '우대사항'. 필수로 승격하지 않는다."
+    },
+    "responsibilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "기술명이 아닌 업무 요구. 'Java'가 아니라 '대규모 트래픽 서비스 개발'."
+    },
+    "recruitmentProcess": { "type": "array", "items": { "type": "string" } },
+    "deadline": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "상시채용이면 null + deadlineNote"
+    },
+    "deadlineNote": { "type": ["string", "null"] },
+    "location": { "type": ["string", "null"] },
+    "sourceUrl": { "type": ["string", "null"], "format": "uri" },
+    "rawContent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "공고 원문 전체. 요약본으로 대체하지 않는다."
+    },
+    "unmappedFragments": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "구조화하지 못한 원문 구절. 버리지 않고 여기에 남긴다."
+    }
+  }
+}
