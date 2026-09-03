@@ -28,14 +28,15 @@
 ## Repository
 
 ```text
-backend/     Spring Boot (Java 17+)
-frontend/    Next.js (TypeScript)
+backend/     Spring Boot 4.1 + Gradle (Groovy DSL), Java 17
+frontend/    Next.js 16 + TypeScript + Tailwind (App Router, src/)
 docs/        제품·도메인·아키텍처 문서 (정본)
 schemas/     Agent 출력 검증용 JSON Schema (실행 가능한 계약)
 .claude/     하네스
 ```
 
-> 현재 Phase 0. `backend/`, `frontend/`는 아직 생성되지 않았다.
+`frontend/`에는 Next.js가 생성·갱신하는 `AGENTS.md`가 있다(`frontend/CLAUDE.md`가 이를 import).
+프론트 작업 시 그쪽 지침도 함께 적용된다.
 
 ## Conventions
 
@@ -48,9 +49,17 @@ schemas/     Agent 출력 검증용 JSON Schema (실행 가능한 계약)
 
 ## Validation
 
-Phase 0 진행 중이라 아직 확정되지 않았다. 스캐폴딩 후 채운다.
+```bash
+# backend  (cwd: backend/)
+./gradlew test
 
-```text
-backend:   ./gradlew test
-frontend:  pnpm lint && pnpm test
+# frontend (cwd: frontend/)
+pnpm lint && pnpm build
 ```
+
+DB가 필요한 테스트는 Testcontainers를 쓴다. 로컬 개발용 DB는 `docker compose up -d postgres`.
+스키마는 **Flyway가 소유한다.** `ddl-auto: validate`이므로 Hibernate가 테이블을 만들지 않는다.
+엔티티를 바꾸면 `backend/src/main/resources/db/migration/`에 마이그레이션을 추가한다.
+
+> 이 환경에서 `pnpm`이 PATH에 없으면 `corepack pnpm ...`으로 실행한다.
+> 전역 설치는 관리자 권한 셸에서 `corepack enable pnpm`.

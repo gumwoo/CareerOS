@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: careeros-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/careeros}
+    username: ${DB_USERNAME:careeros}
+    password: ${DB_PASSWORD:careeros}
+  jpa:
+    hibernate:
+      ddl-auto: validate   # 스키마는 Flyway가 소유한다. Hibernate가 DDL을 만들지 않는다.
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    dev.careeros: DEBUG
