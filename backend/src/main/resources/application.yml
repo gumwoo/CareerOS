@@ -15,6 +15,15 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+careeros:
+  evidence-extraction:
+    # 모델을 설정값으로 둔 이유는 측정해서 내리기 위해서다.
+    # AI Eval 데이터셋이 생기면 같은 입력으로 haiku 를 돌려 정확도를 비교한다.
+    model: ${EVIDENCE_MODEL:claude-sonnet-5}
+    max-tokens: 16000
+    effort: HIGH
+    prompt-version: v1
+
 management:
   endpoints:
     web:

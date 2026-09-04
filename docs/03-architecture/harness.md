@@ -99,6 +99,9 @@ CI          .github/workflows/contracts.yml
 | 16 | 필수 개수 제약으로 모델에게 지어낼 압력을 주지 않는다 | `skills`/`category` `minItems` 제거 | 적용됨 |
 | 17 | 조립 결과도 계약을 만족해야 한다 | `validateAssembled()` | 적용됨 |
 | 18 | LLM 계약 = Structured Output 계약 = 추출기 반환 계약 | `career-evidence.llm.schema.json` 루트 object + `evidences` | 적용됨 |
+| 19 | 모델에게 넘기는 스키마는 저장소의 계약 파일이다 | `AnthropicEvidenceExtractor` (POJO 파생 금지) | 적용됨 |
+| 20 | 요청용 스키마 축소가 검증 규칙을 느슨하게 만들지 않는다 | `StructuredOutputSchema` + `StructuredOutputSchemaTest` | 적용됨 |
+| 21 | 프롬프트에는 그 SourceInput의 원문만 들어간다 | `EvidencePromptBuilderTest` | 적용됨 |
 
 9~12는 계약에는 있으나 강제할 코드가 아직 없다. 해당 기능을 구현할 때
 가드와 메타테스트를 **같은 커밋에서** 추가한다.
@@ -156,10 +159,10 @@ cd backend && ./gradlew integrationTest # 통합 (Docker)
 
 ## 아직 없는 것
 
-- **AI Evaluation** — 실제 LLM을 붙이기 전에는 골든 데이터셋이 의미가 없다.
-  스텁 출력에 대한 정확도는 스텁을 측정할 뿐이다.
-  실제 추출기가 생기면 `tests/ai-eval/`에 케이스를 쌓고
-  프롬프트·모델을 바꿀 때마다 전체를 재실행한다.
+- **AI Evaluation** — 추출기는 붙었지만 골든 데이터셋이 아직 없다.
+  지금 가드가 잡아본 것은 스텁의 가짜 오류뿐이고, 실제 모델이 어떤 방식으로 틀리는지는
+  측정된 바 없다. `tests/ai-eval/`에 케이스를 쌓고 프롬프트·모델을 바꿀 때마다 재실행한다.
+  모델을 Sonnet 5에서 Haiku 4.5로 내릴지도 여기서 **측정해서** 정한다.
 - **E2E** — 화면이 없다.
 - **아키텍처 규칙 가드** — 계층 간 의존 방향을 강제하는 검사(ArchUnit 등).
   패키지가 몇 개 안 되는 지금은 이르다.
