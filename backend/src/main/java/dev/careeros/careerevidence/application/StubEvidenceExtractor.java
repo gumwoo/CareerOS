@@ -7,7 +7,6 @@ import dev.careeros.careerevidence.domain.SourceInput;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.time.format.DateTimeFormatter;
 
 /**
  * LLM 연결 전까지 파이프라인을 돌리기 위한 스텁.
@@ -62,12 +61,8 @@ public class StubEvidenceExtractor implements EvidenceExtractor {
 
         draft.putArray("usableFor");
 
-        ObjectNode source = draft.putObject("source");
-        source.put("type", sourceInput.getType().name());
-        source.put("originId", sourceInput.getId().toString());
-        source.put("excerpt", excerpt);
-        source.put("url", sourceInput.getUrl());
-        source.put("capturedAt", DateTimeFormatter.ISO_INSTANT.format(sourceInput.getCapturedAt()));
+        // 출처는 시스템이 소유한다. 모델이 말할 수 있는 것은 "어느 구간이 근거인가"뿐이다.
+        draft.put("sourceExcerpt", excerpt);
 
         // 스텁은 원문을 쪼개지 못하므로 항상 1건이다. 실제 추출기는 여러 건을 낼 수 있다.
         ArrayNode drafts = objectMapper.createArrayNode();

@@ -6,8 +6,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.format.DateTimeFormatter;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,13 +36,28 @@ class EvidenceDraftValidatorTest {
     }
 
     @Test
-    @DisplayName("source가 없으면 거부한다 — 출처 없는 Evidence는 허용하지 않는다")
-    void rejectsMissingSource() {
-        String withoutSource = draft().replaceFirst(",\\s*\"source\"\\s*:\\s*\\{[^}]*}", "");
+    @DisplayName("sourceExcerpt가 없으면 거부한다 — 근거 구간 없이는 원문 대조가 성립하지 않는다")
+    void rejectsMissingSourceExcerpt() {
+        String without = draft().replaceFirst(",\\s*\"sourceExcerpt\"\\s*:\\s*\"[^\"]*\"", "");
 
-        assertThatThrownBy(() -> validator.validateAll(withoutSource, sourceInput))
+        assertThatThrownBy(() -> validator.validateAll(without, sourceInput))
                 .isInstanceOf(EvidenceExtractionException.class)
-                .hasMessageContaining("schema");
+                .hasMessageContaining("llm.schema.json");
+    }
+
+    @Test
+    @DisplayName("모델이 출처를 말하려 하면 거부한다 — provenance는 시스템 소유다")
+    void rejectsModelClaimingProvenance() {
+        for (String systemOwned : new String[]{
+                "\"source\": {\"type\": \"USER_INPUT\"},",
+                "\"originId\": \"11111111-1111-1111-1111-111111111111\",",
+                "\"capturedAt\": \"2026-09-03T00:00:00Z\","}) {
+            String intruded = draft().replace("\"title\":", systemOwned + " \"title\":");
+
+            assertThatThrownBy(() -> validator.validateAll(intruded, sourceInput))
+                    .as(systemOwned)
+                    .isInstanceOf(EvidenceExtractionException.class);
+        }
     }
 
     @Test
@@ -120,25 +133,6 @@ class EvidenceDraftValidatorTest {
     }
 
     @Test
-    @DisplayName("source.type이 실제 입력 경로와 다르면 거부한다")
-    void rejectsMismatchedSourceType() {
-        String mismatched = draft().replace("\"type\": \"USER_INPUT\"", "\"type\": \"RESUME_UPLOAD\"");
-
-        assertThatThrownBy(() -> validator.validateAll(mismatched, sourceInput))
-                .isInstanceOf(EvidenceExtractionException.class)
-                .hasMessageContaining("source.type");
-    }
-
-    @Test
-    @DisplayName("capturedAt이 날짜 형식이 아니면 500이 아니라 계약 위반으로 거부한다")
-    void rejectsMalformedTimestamp() {
-        String malformed = draft().replaceAll("\"capturedAt\": \"[^\"]+\"", "\"capturedAt\": \"어제\"");
-
-        assertThatThrownBy(() -> validator.validateAll(malformed, sourceInput))
-                .isInstanceOf(EvidenceExtractionException.class);
-    }
-
-    @Test
     @DisplayName("배열이 아니면 거부한다 — 추출기는 항상 목록을 반환한다")
     void rejectsNonArray() {
         assertThatThrownBy(() -> validator.validateAll(singleDraft(), sourceInput))
@@ -180,13 +174,43 @@ class EvidenceDraftValidatorTest {
     }
 
     @Test
-    @DisplayName("originId가 추출 대상 원문과 다르면 거부한다")
-    void rejectsMismatchedOrigin() {
-        SourceInput other = SourceInput.create(SourceType.USER_INPUT, RAW_TEXT, null);
+    @DisplayName("조립 결과가 시스템 계약을 어기면 거부한다 — 우리 코드를 검사하는 관문")
+    void rejectsBrokenAssembly() {
+        // source 블록이 통째로 빠진 조립 결과. 조립 로직 버그가 이렇게 드러난다.
+        String assembledWithoutSource = singleDraft().replace(
+                "\"sourceExcerpt\": \"다중 SSE 연결에서 최대 14초 지연이 발생했고\"",
+                "\"unused\": null");
 
-        assertThatThrownBy(() -> validator.validateAll(draft(), other))
+        assertThatThrownBy(() -> validator.validateAssembled(parse(assembledWithoutSource)))
                 .isInstanceOf(EvidenceExtractionException.class)
-                .hasMessageContaining("originId");
+                .hasMessageContaining("career-evidence.schema.json");
+    }
+
+    @Test
+    @DisplayName("조립된 capturedAt 형식이 틀리면 거부한다 — 직렬화 버그를 잡는다")
+    void rejectsMalformedAssembledTimestamp() {
+        String assembled = singleDraft().replace(
+                "\"sourceExcerpt\": \"다중 SSE 연결에서 최대 14초 지연이 발생했고\"",
+                """
+                "source": {
+                  "type": "USER_INPUT",
+                  "originId": "11111111-1111-1111-1111-111111111111",
+                  "excerpt": "다중 SSE 연결에서 최대 14초 지연이 발생했고",
+                  "url": null,
+                  "capturedAt": "어제"
+                }
+                """);
+
+        assertThatThrownBy(() -> validator.validateAssembled(parse(assembled)))
+                .isInstanceOf(EvidenceExtractionException.class);
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode parse(String json) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /** 추출기는 배열을 반환한다. 단건 테스트도 배열로 감싼다. */
@@ -208,16 +232,8 @@ class EvidenceDraftValidatorTest {
                   "metrics": [],
                   "skills": [],
                   "usableFor": [],
-                  "source": {
-                    "type": "USER_INPUT",
-                    "originId": "%s",
-                    "excerpt": "다중 SSE 연결에서 최대 14초 지연이 발생했고",
-                    "url": null,
-                    "capturedAt": "%s"
-                  }
+                  "sourceExcerpt": "다중 SSE 연결에서 최대 14초 지연이 발생했고"
                 }
-                """.formatted(
-                sourceInput.getId(),
-                DateTimeFormatter.ISO_INSTANT.format(sourceInput.getCapturedAt()));
+                """;
     }
 }

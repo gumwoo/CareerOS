@@ -77,6 +77,26 @@ CASES = [
         "schemas/job-posting.schema.json",
         remove_required("rawContent"),
     ),
+    (
+        "출처 경계 · LLM 스키마에 source 객체가 생기면",
+        "schemas/career-evidence.llm.schema.json",
+        lambda s: s["properties"].update({"source": {"type": "object"}}),
+    ),
+    (
+        "출처 경계 · LLM 스키마에 originId 가 생기면",
+        "schemas/career-evidence.llm.schema.json",
+        lambda s: s["properties"].update({"originId": {"type": "string"}}),
+    ),
+    (
+        "출처 경계 · sourceExcerpt 가 required 에서 빠지면",
+        "schemas/career-evidence.llm.schema.json",
+        remove_required("sourceExcerpt"),
+    ),
+    (
+        "출처 경계 · 완성 스키마에서 source 가 사라지면",
+        "schemas/career-evidence.schema.json",
+        lambda s: s["properties"].pop("source"),
+    ),
 ]
 
 
