@@ -34,6 +34,12 @@ public class StubEvidenceExtractor implements EvidenceExtractor {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
+    public ExtractionOrigin origin() {
+        // 모델이 아니므로 모델 id 를 쓰지 않는다. 프롬프트도 쓰지 않으므로 버전은 null.
+        return ExtractionOrigin.of("stub");
+    }
+
+    @Override
     public String extractDraftsJson(SourceInput sourceInput) {
         String excerpt = verbatimExcerpt(sourceInput.getRawText());
 

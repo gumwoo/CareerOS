@@ -72,6 +72,9 @@ class CareerEvidenceFlowIT {
                 .andExpect(jsonPath("$.evidences[0].status").value("DRAFT"))
                 .andExpect(jsonPath("$.evidences[0].code").value(org.hamcrest.Matchers.matchesPattern("CE-\\d{5}")))
                 .andExpect(jsonPath("$.source.rawText").value(RAW_TEXT))
+                // 무엇이 만들었는지가 행에 남아야 나중에 모델·프롬프트를 비교할 수 있다
+                .andExpect(jsonPath("$.evidences[0].extractedBy.model").value("stub"))
+                .andExpect(jsonPath("$.evidences[0].extractedBy.promptVersion").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode draft = objectMapper.readTree(draftResponse);
@@ -97,7 +100,12 @@ class CareerEvidenceFlowIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id=='" + evidenceId + "')]").isNotEmpty());
 
-        // 6. 두 번 확인할 수 없다
+        // 6. 확인 후에도 추출 출처가 남아 있다
+        mvc.perform(get("/api/career-evidences/{id}", evidenceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.extractedBy.model").value("stub"));
+
+        // 7. 두 번 확인할 수 없다
         mvc.perform(post("/api/career-evidences/{id}/confirm", evidenceId))
                 .andExpect(status().isConflict());
     }

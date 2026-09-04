@@ -43,6 +43,7 @@ dependencies {
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	// schemas/*.json 을 런타임에 실제로 검증하는 데 쓴다. (schemas/README.md)
 	implementation 'com.networknt:json-schema-validator:1.5.6'
+	implementation 'com.anthropic:anthropic-java:2.34.0'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'

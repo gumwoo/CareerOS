@@ -26,6 +26,8 @@ import java.util.UUID;
  * <p>이 클래스가 강제하는 것:
  * <ul>
  *   <li>source 없이는 생성할 수 없다 — 출처 없는 Evidence는 출처를 알 수 없는 주장이다.</li>
+ *   <li>무엇이 만들었는지(extractionModel) 없이는 생성할 수 없다 — 나중에 모델·프롬프트를
+ *       바꿨을 때 어떤 조합으로 뽑은 것인지 구별할 수 없으면 비교가 불가능하다.</li>
  *   <li>LLM 추출 직후는 DRAFT다. 사용자가 확인해야 CONFIRMED가 된다.</li>
  *   <li>analysis / rootCause는 null일 수 있고 skills / categories는 빌 수 있다.
  *       "확인했고 근거가 없었다"는 뜻이며, 추측으로 채우는 것과 다르다.</li>
@@ -111,6 +113,14 @@ public class CareerEvidence {
     @OneToMany(mappedBy = "evidence", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<EvidenceMetric> metrics = new ArrayList<>();
 
+    /** 이 Evidence 를 만든 모델 id. 모델이 아닌 추출기는 자기 이름(예: stub). */
+    @Column(name = "extraction_model", nullable = false)
+    private String extractionModel;
+
+    /** 사용한 프롬프트 버전. 프롬프트를 쓰지 않는 추출기는 null. */
+    @Column(name = "prompt_version")
+    private String promptVersion;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -128,6 +138,7 @@ public class CareerEvidence {
         requireText(builder.action, "action");
         requireText(builder.result, "result");
         requireText(builder.sourceExcerpt, "source.excerpt");
+        requireText(builder.extractionModel, "extractionModel");
         if (builder.sourceType == null || builder.sourceOriginId == null || builder.sourceCapturedAt == null) {
             throw new IllegalArgumentException("CareerEvidence requires a complete source");
         }
@@ -153,6 +164,8 @@ public class CareerEvidence {
         this.sourceExcerpt = builder.sourceExcerpt;
         this.sourceUrl = builder.sourceUrl;
         this.sourceCapturedAt = builder.sourceCapturedAt;
+        this.extractionModel = builder.extractionModel;
+        this.promptVersion = builder.promptVersion;
         this.categories.addAll(builder.categories);
         this.skills.addAll(builder.skills);
         this.usableFor.addAll(builder.usableFor);
@@ -203,6 +216,8 @@ public class CareerEvidence {
         private String sourceExcerpt;
         private String sourceUrl;
         private Instant sourceCapturedAt;
+        private String extractionModel;
+        private String promptVersion;
         private Set<String> categories = new LinkedHashSet<>();
         private Set<String> skills = new LinkedHashSet<>();
         private Set<String> usableFor = new LinkedHashSet<>();
@@ -229,6 +244,13 @@ public class CareerEvidence {
         public Builder skills(Set<String> v) { this.skills = new LinkedHashSet<>(v); return this; }
         public Builder usableFor(Set<String> v) { this.usableFor = new LinkedHashSet<>(v); return this; }
         public Builder metrics(List<MetricDraft> v) { this.metrics = new ArrayList<>(v); return this; }
+
+        /** 무엇이 이 초안을 만들었는지. 기록 없이 저장할 수 없다. */
+        public Builder extractedBy(String model, String promptVersion) {
+            this.extractionModel = model;
+            this.promptVersion = promptVersion;
+            return this;
+        }
 
         public Builder source(SourceType type, UUID originId, String excerpt, String url, Instant capturedAt) {
             this.sourceType = type;
@@ -280,6 +302,8 @@ public class CareerEvidence {
     public String getSourceExcerpt() { return sourceExcerpt; }
     public String getSourceUrl() { return sourceUrl; }
     public Instant getSourceCapturedAt() { return sourceCapturedAt; }
+    public String getExtractionModel() { return extractionModel; }
+    public String getPromptVersion() { return promptVersion; }
     public Set<String> getCategories() { return Set.copyOf(categories); }
     public Set<String> getSkills() { return Set.copyOf(skills); }
     public Set<String> getUsableFor() { return Set.copyOf(usableFor); }

@@ -60,7 +60,8 @@ final class CareerEvidenceDtos {
             List<MetricResponse> metrics,
             Set<String> skills,
             Set<String> usableFor,
-            SourceResponse source) {
+            SourceResponse source,
+            ExtractionResponse extractedBy) {
 
         static EvidenceResponse from(CareerEvidence e) {
             return new EvidenceResponse(
@@ -80,11 +81,16 @@ final class CareerEvidenceDtos {
                     e.getSkills(),
                     e.getUsableFor(),
                     new SourceResponse(e.getSourceType(), e.getSourceOriginId(),
-                            e.getSourceExcerpt(), e.getSourceUrl(), e.getSourceCapturedAt()));
+                            e.getSourceExcerpt(), e.getSourceUrl(), e.getSourceCapturedAt()),
+                    new ExtractionResponse(e.getExtractionModel(), e.getPromptVersion()));
         }
     }
 
     record ContextResponse(String project, String role, String period, Integer teamSize) {
+    }
+
+    /** 사용자도 무엇이 이 초안을 만들었는지 볼 수 있어야 확인이 형식적인 클릭이 되지 않는다. */
+    record ExtractionResponse(String model, String promptVersion) {
     }
 
     /**

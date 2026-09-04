@@ -45,6 +45,15 @@ schemas/     Agent 출력 검증용 JSON Schema (실행 가능한 계약)
 - DB 테이블은 snake_case 복수형, 상태값은 UPPER_SNAKE_CASE.
 - LLM 호출은 Structured Output을 기본으로 하고, 응답은 `schemas/`로 검증한 뒤 도메인 객체로 변환한다.
   모델 응답을 그대로 DB에 저장하지 않는다.
+- **응답 스키마는 `schemas/`의 파일을 그대로 넘긴다.** POJO에서 파생시키지 않는다.
+  파생시키면 저장소의 계약과 모델이 실제로 받는 계약이 갈라진다.
+  Structured Output이 받지 않는 제약(`minLength`·`minimum` 등)은 요청에서만 걷어내고
+  검증에서는 유지한다 (`StructuredOutputSchema`).
+- **프롬프트는 코드에 하드코딩하지 않는다.** `resources/prompts/<name>.<version>.md`로 두고
+  버전을 설정값으로 기록한다. 프롬프트가 바뀌면 결과가 바뀌므로 추적할 수 있어야 한다.
+- **API 키는 운영체제 환경변수로만.** `.env` 파일은 애플리케이션이 읽지 않는다
+  (SDK의 `fromEnv()`도 Spring Boot도 dotenv를 로드하지 않는다). 셸에서 export 한다.
+  코드·설정·커밋에 키를 넣지 않는다.
 - `schemas/`와 `docs/`의 정본 정의는 함께 변경한다.
 - **실패를 발견하면 주의사항으로 남기지 않는다.** 불변식으로 적고, 가드로 강제하고,
   가드가 실제로 잡는지 메타테스트로 확인하고, CI에 건다.
@@ -101,6 +110,17 @@ Fit Score 계산이나 excerpt 대조 같은 핵심 로직은 DB 없이 검증�
 테스트 컨테이너와 docker-compose는 **같은 이미지**(`pgvector/pgvector:pg16`)를 쓴다.
 스키마는 **Flyway가 소유한다.** `ddl-auto: validate`이므로 Hibernate가 테이블을 만들지 않는다.
 엔티티를 바꾸면 `backend/src/main/resources/db/migration/`에 마이그레이션을 추가한다.
+
+실제 LLM을 호출하는 기본 프로파일은 `ANTHROPIC_API_KEY` **환경변수**가 없으면 기동에 실패한다.
+`.env` 파일에 적어두는 것으로는 잡히지 않는다.
+
+```powershell
+$env:ANTHROPIC_API_KEY="sk-ant-..."   # bash: export ANTHROPIC_API_KEY=sk-ant-...
+cd backend; ./gradlew bootRun
+```
+
+키 없이 돌리려면 `./gradlew bootRun --args='--spring.profiles.active=stub'`.
+CI는 실제 API를 호출하지 않는다.
 
 > 이 환경에서 `pnpm`이 PATH에 없으면 `corepack pnpm ...`으로 실행한다.
 > 전역 설치는 관리자 권한 셸에서 `corepack enable pnpm`.
