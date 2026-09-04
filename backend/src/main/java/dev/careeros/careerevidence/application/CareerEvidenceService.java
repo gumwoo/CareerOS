@@ -176,6 +176,9 @@ public class CareerEvidenceService {
                 // type / originId / url / capturedAt 은 추출기 출력이 아니라 SourceInput 에서 온다.
                 // 추출기에게 물어볼 이유가 없는 값이고, 물어보면 실제 입력 경로와 어긋날 수 있다.
                 // (excerpt 만 추출기가 고른 값이고, 그래서 원문 대조 대상이다)
+                // 무엇이 이 초안을 만들었는가. 로그가 아니라 행에 남아야
+                // 나중에 모델·프롬프트를 바꿨을 때 대조군으로 쓸 수 있다.
+                .extractedBy(extractor.origin().model(), extractor.origin().promptVersion())
                 .source(sourceInput.getType(),
                         sourceInput.getId(),
                         source.path("excerpt").asText(),

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 실제 추출기.
@@ -59,6 +60,11 @@ public class AnthropicEvidenceExtractor implements EvidenceExtractor {
     }
 
     @Override
+    public ExtractionOrigin origin() {
+        return new ExtractionOrigin(properties.model(), promptBuilder.version());
+    }
+
+    @Override
     public String extractDraftsJson(SourceInput sourceInput) {
         MessageCreateParams params = MessageCreateParams.builder()
                 .model(properties.model())
@@ -78,7 +84,7 @@ public class AnthropicEvidenceExtractor implements EvidenceExtractor {
 
         Message response = client.messages().create(params);
         logUsage(response);
-        rejectIfNotCompleted(response, sourceInput);
+        assertCompleted(response.stopReason().orElse(null), sourceInput.getId());
 
         return response.content().stream()
                 .flatMap(block -> block.text().stream())
@@ -89,20 +95,24 @@ public class AnthropicEvidenceExtractor implements EvidenceExtractor {
     }
 
     /**
-     * 응답이 끝까지 나오지 않았으면 거부한다.
+     * 정상 종료가 <b>확인된</b> 경우에만 통과시킨다.
      *
      * <p>{@code MAX_TOKENS}로 잘린 JSON은 파싱조차 되지 않아 어차피 실패하지만,
      * 그때는 "JSON 파싱 실패"로만 보여서 원인이 max_tokens 라는 것이 드러나지 않는다.
      * {@code REFUSAL}은 200으로 돌아오므로 확인하지 않으면 조용히 빈 결과가 된다.
+     *
+     * <p>{@code stopReason}이 비어 있으면 <b>거부한다.</b> 비어 있다는 것은
+     * "정상 종료가 확인됐다"가 아니라 "종료 이유를 모른다"는 뜻이다.
+     * 모르는 것을 정상으로 취급하면 이 프로젝트의 다른 모든 가드와 방향이 어긋난다.
      */
-    private void rejectIfNotCompleted(Message response, SourceInput sourceInput) {
-        StopReason stopReason = response.stopReason().orElse(null);
-        if (stopReason == null || stopReason.equals(StopReason.END_TURN)) {
+    static void assertCompleted(StopReason stopReason, UUID sourceInputId) {
+        if (StopReason.END_TURN.equals(stopReason)) {
             return;
         }
         throw new EvidenceExtractionException(
-                "Model did not complete the extraction (stopReason=" + stopReason
-                        + ", sourceInput=" + sourceInput.getId() + ")");
+                "Model did not complete the extraction (stopReason="
+                        + (stopReason == null ? "unknown" : stopReason)
+                        + ", sourceInput=" + sourceInputId + ")");
     }
 
     /** 비용과 캐시 적중을 눈으로 확인할 수 있어야 한다. 캐시가 0이면 프롬프트가 흔들리고 있다는 뜻이다. */

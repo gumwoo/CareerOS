@@ -102,6 +102,8 @@ CI          .github/workflows/contracts.yml
 | 19 | 모델에게 넘기는 스키마는 저장소의 계약 파일이다 | `AnthropicEvidenceExtractor` (POJO 파생 금지) | 적용됨 |
 | 20 | 요청용 스키마 축소가 검증 규칙을 느슨하게 만들지 않는다 | `StructuredOutputSchema` + `StructuredOutputSchemaTest` | 적용됨 |
 | 21 | 프롬프트에는 그 SourceInput의 원문만 들어간다 | `EvidencePromptBuilderTest` | 적용됨 |
+| 22 | 무엇이 만들었는지 기록 없이 Evidence를 만들 수 없다 | `CareerEvidence` 생성자 + DB NOT NULL | 적용됨 |
+| 23 | 정상 종료가 확인된 응답만 받는다 | `assertCompleted()` — `stopReason` 없으면 거부 | 적용됨 |
 
 9~12는 계약에는 있으나 강제할 코드가 아직 없다. 해당 기능을 구현할 때
 가드와 메타테스트를 **같은 커밋에서** 추가한다.

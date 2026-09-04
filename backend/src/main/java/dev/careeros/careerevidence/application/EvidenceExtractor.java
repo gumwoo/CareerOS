@@ -28,4 +28,11 @@ import dev.careeros.careerevidence.domain.SourceInput;
 public interface EvidenceExtractor {
 
     String extractDraftsJson(SourceInput sourceInput);
+
+    /**
+     * 무엇이 이 결과를 만들었는가. Evidence 와 함께 저장된다.
+     *
+     * @see ExtractionOrigin
+     */
+    ExtractionOrigin origin();
 }
