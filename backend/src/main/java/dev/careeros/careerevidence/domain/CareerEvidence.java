@@ -27,8 +27,8 @@ import java.util.UUID;
  * <ul>
  *   <li>source 없이는 생성할 수 없다 — 출처 없는 Evidence는 출처를 알 수 없는 주장이다.</li>
  *   <li>LLM 추출 직후는 DRAFT다. 사용자가 확인해야 CONFIRMED가 된다.</li>
- *   <li>analysis / rootCause는 null일 수 있다. null은 "확인했고 근거가 없었다"는 뜻이며,
- *       추측으로 채우는 것과 다르다.</li>
+ *   <li>analysis / rootCause는 null일 수 있고 skills / categories는 빌 수 있다.
+ *       "확인했고 근거가 없었다"는 뜻이며, 추측으로 채우는 것과 다르다.</li>
  * </ul>
  */
 @Entity
@@ -131,12 +131,9 @@ public class CareerEvidence {
         if (builder.sourceType == null || builder.sourceOriginId == null || builder.sourceCapturedAt == null) {
             throw new IllegalArgumentException("CareerEvidence requires a complete source");
         }
-        if (builder.categories.isEmpty()) {
-            throw new IllegalArgumentException("CareerEvidence requires at least one category");
-        }
-        if (builder.skills.isEmpty()) {
-            throw new IllegalArgumentException("CareerEvidence requires at least one skill");
-        }
+        // categories / skills 는 비어 있을 수 있다.
+        // 최소 1개를 요구하면 모델이 제약을 만족시키려고 기술명이나 분류를 지어낸다.
+        // analysis / rootCause 를 null 허용으로 둔 것과 같은 이유다.
 
         this.id = UUID.randomUUID();
         this.code = builder.code.value();

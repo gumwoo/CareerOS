@@ -90,7 +90,10 @@ final class CareerEvidenceDtos {
     /**
      * 추출 결과는 원문과 <b>함께</b> 보여준다.
      * 사용자가 대조하지 못하면 확인 단계가 형식적인 클릭이 된다.
+     *
+     * <p>원문 하나에서 Evidence가 여러 개 나올 수 있으므로 목록으로 담는다.
+     * 확인(confirm)은 초안별로 따로 한다 — 하나는 맞고 하나는 틀릴 수 있다.
      */
-    record DraftReviewResponse(EvidenceResponse evidence, SourceInputResponse source) {
+    record DraftReviewResponse(List<EvidenceResponse> evidences, SourceInputResponse source) {
     }
 }

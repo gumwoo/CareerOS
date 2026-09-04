@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -29,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
+@ActiveProfiles("stub")   // 스텁은 이제 기본값이 아니다. 명시해야 등록된다.
 class CareerEvidenceFlowIT {
 
     private static final String RAW_TEXT =
@@ -66,18 +68,19 @@ class CareerEvidenceFlowIT {
                                 { "sourceInputId": "%s" }
                                 """.formatted(sourceInputId)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.evidence.status").value("DRAFT"))
-                .andExpect(jsonPath("$.evidence.code").value(org.hamcrest.Matchers.matchesPattern("CE-\\d{5}")))
+                .andExpect(jsonPath("$.evidences").isArray())
+                .andExpect(jsonPath("$.evidences[0].status").value("DRAFT"))
+                .andExpect(jsonPath("$.evidences[0].code").value(org.hamcrest.Matchers.matchesPattern("CE-\\d{5}")))
                 .andExpect(jsonPath("$.source.rawText").value(RAW_TEXT))
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode draft = objectMapper.readTree(draftResponse);
-        String evidenceId = draft.at("/evidence/id").asText();
+        String evidenceId = draft.at("/evidences/0/id").asText();
 
         // excerpt는 원문에서 그대로 나온 구절이어야 한다
-        String excerpt = draft.at("/evidence/source/excerpt").asText();
+        String excerpt = draft.at("/evidences/0/source/excerpt").asText();
         assertThat(RAW_TEXT).contains(excerpt);
-        assertThat(draft.at("/evidence/source/originId").asText()).isEqualTo(sourceInputId);
+        assertThat(draft.at("/evidences/0/source/originId").asText()).isEqualTo(sourceInputId);
 
         // 3. 확인 전에는 Career Bank(CONFIRMED)에 보이지 않는다
         mvc.perform(get("/api/career-evidences"))

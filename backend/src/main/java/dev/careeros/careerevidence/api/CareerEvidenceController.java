@@ -43,14 +43,17 @@ public class CareerEvidenceController {
 
     /**
      * 2단계. 추출 -> 스키마 검증 -> 원문 대조 -> DRAFT 저장.
-     * 응답에 원문을 함께 담아 사용자가 대조할 수 있게 한다.
+     *
+     * <p>원문 하나에서 Evidence가 여러 개 나올 수 있다. 응답에 원문을 함께 담아
+     * 사용자가 각 초안을 원문과 대조할 수 있게 한다.
      */
     @PostMapping("/career-evidences/extract")
     public ResponseEntity<DraftReviewResponse> extract(@Valid @RequestBody ExtractRequest request) {
-        CareerEvidence draft = service.extractDraft(request.sourceInputId());
+        List<CareerEvidence> drafts = service.extractDrafts(request.sourceInputId());
         SourceInput source = service.findSourceInput(request.sourceInputId());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new DraftReviewResponse(EvidenceResponse.from(draft), SourceInputResponse.from(source)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new DraftReviewResponse(
+                drafts.stream().map(EvidenceResponse::from).toList(),
+                SourceInputResponse.from(source)));
     }
 
     /** 3단계. 사용자 확인. 이 시점부터 사실로 사용된다. */

@@ -110,6 +110,86 @@ def check_llm_schema_has_no_score_fields() -> None:
             fail("adr-0002", f"API 응답 스키마에 {expected} 가 없다")
 
 
+def property_names_of(node) -> set[str]:
+    """스키마가 선언한 property 이름을 전부 모은다. JSON Schema 키워드는 세지 않는다."""
+    names: set[str] = set()
+    if isinstance(node, dict):
+        if isinstance(node.get("properties"), dict):
+            names |= set(node["properties"])
+            for child in node["properties"].values():
+                names |= property_names_of(child)
+        for key, value in node.items():
+            if key != "properties":
+                names |= property_names_of(value)
+    elif isinstance(node, list):
+        for item in node:
+            names |= property_names_of(item)
+    return names
+
+
+def check_evidence_llm_schema_owns_nothing_systemic() -> None:
+    """모델은 출처(provenance)를 말하지 않는다.
+
+    type / originId / url / capturedAt 은 시스템이 이미 아는 값이다. 물어보면
+    저장할 때 버리게 되고, 버릴 값의 형식이 틀렸다는 이유로 멀쩡한 추출 전체가
+    거부될 수 있다. 물어보지 않으면 만들어낼 수도 없다.
+
+    모델이 출처에 대해 말할 수 있는 유일한 값은 sourceExcerpt 다.
+    """
+    llm_path = SCHEMAS / "career-evidence.llm.schema.json"
+    if not llm_path.exists():
+        fail("evidence-llm-boundary",
+             "career-evidence.llm.schema.json 이 없다. LLM 요청 스키마를 분리해야 한다")
+        return
+
+    llm = json.loads(llm_path.read_text(encoding="utf-8"))
+
+    # Structured Output 은 루트를 object 로 요구한다. 배열 루트는 쓸 수 없다.
+    # 이 스키마 하나가 Structured Output 계약이자 EvidenceExtractor 반환 계약이자
+    # Validator 입력 계약이므로 셋이 어긋나면 안 된다.
+    if llm.get("type") != "object":
+        fail("evidence-llm-boundary",
+             f"LLM 요청 스키마의 루트가 object 가 아니다 (현재 {llm.get('type')}). "
+             "Structured Output 은 object 루트를 요구한다")
+    if llm.get("required") != ["evidences"]:
+        fail("evidence-llm-boundary",
+             f"루트 required 는 ['evidences'] 여야 한다 (현재 {llm.get('required')})")
+    items_ref = llm.get("properties", {}).get("evidences", {}).get("items", {}).get("$ref")
+    if items_ref != "#/$defs/evidence":
+        fail("evidence-llm-boundary", f"evidences.items 가 $defs/evidence 를 가리키지 않는다 ({items_ref})")
+
+    evidence = llm.get("$defs", {}).get("evidence")
+    if evidence is None:
+        fail("evidence-llm-boundary", "$defs.evidence 가 없다")
+        return
+
+    system_owned = {"source", "originId", "capturedAt", "url", "type"}
+    found = property_names_of(llm) & system_owned
+    if found:
+        fail("evidence-llm-boundary",
+             f"LLM 요청 스키마에 시스템 소유 필드가 있다: {sorted(found)}. "
+             "출처는 backend 가 SourceInput 에서 주입한다")
+
+    if "sourceExcerpt" not in evidence["required"]:
+        fail("evidence-llm-boundary", "sourceExcerpt 가 required 가 아니다. "
+                                      "모델이 근거 구간을 고르지 않으면 원문 대조가 성립하지 않는다")
+
+    excerpt = evidence["properties"].get("sourceExcerpt", {})
+    if excerpt.get("minLength", 0) < 20:
+        fail("evidence-llm-boundary",
+             f"sourceExcerpt 에 실질적인 minLength 하한이 없다 (현재 {excerpt.get('minLength', 0)})")
+
+    # 완성된 Evidence 쪽에는 반대로 출처가 그대로 있어야 한다.
+    persisted = load("career-evidence.schema.json")
+    if "source" not in persisted["properties"]:
+        fail("evidence-llm-boundary", "career-evidence.schema.json 에서 source 가 사라졌다")
+
+    # "모든 필드 required" 원칙은 LLM 스키마에도 적용된다.
+    missing = set(evidence["properties"]) - set(evidence["required"])
+    if missing:
+        fail("evidence-llm-boundary", f"LLM 스키마에서 required 가 아닌 필드: {sorted(missing)}")
+
+
 def check_evidence_required_matches_doc() -> None:
     """스키마와 정본 문서가 갈라지면 어느 쪽이 진짜인지 알 수 없게 된다."""
     schema = load("career-evidence.schema.json")
@@ -272,6 +352,7 @@ CHECKS = [
     check_evidence_required_matches_doc,
     check_evidence_source_is_required,
     check_metrics_are_separated_from_result,
+    check_evidence_llm_schema_owns_nothing_systemic,
     check_judgements_require_evidence,
     check_weakness_and_no_evidence_are_separate,
     check_job_posting_keeps_required_and_preferred_apart,

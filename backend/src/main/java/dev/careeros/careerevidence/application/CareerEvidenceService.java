@@ -1,6 +1,7 @@
 package dev.careeros.careerevidence.application;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.careeros.careerevidence.domain.CareerEvidence;
 import dev.careeros.careerevidence.domain.EvidenceCode;
 import dev.careeros.careerevidence.domain.EvidenceStatus;
@@ -11,6 +12,7 @@ import dev.careeros.careerevidence.infrastructure.SourceInputRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,24 +53,41 @@ public class CareerEvidenceService {
     }
 
     /**
-     * 원문에서 Evidence 초안을 만든다. 검증을 통과하지 못하면 아무것도 저장하지 않는다.
+     * 원문 하나에서 Evidence 초안을 여러 개 만든다.
+     *
+     * <p>이력서나 프로젝트 설명 하나에 독립적인 경험이 여러 개 들어 있는 것이 정상이다.
+     * 하나로 뭉치면 Fit Analysis 에서 공고별로 재사용할 수 없다.
+     *
+     * <p>하나라도 검증을 통과하지 못하면 <b>아무것도 저장하지 않는다.</b>
+     * 일부만 저장하면 걸러진 항목이 있었다는 사실이 사용자에게 보이지 않는다.
+     *
+     * @return 저장된 DRAFT 목록. 추출할 경험이 없었으면 빈 목록.
      */
-    public CareerEvidence extractDraft(UUID sourceInputId) {
+    public List<CareerEvidence> extractDrafts(UUID sourceInputId) {
         SourceInput sourceInput = sourceInputRepository.findById(sourceInputId)
                 .orElseThrow(() -> new NoSuchElementException("SourceInput not found: " + sourceInputId));
 
-        String draftJson = extractor.extractDraftJson(sourceInput);
-        JsonNode draft = validator.validate(draftJson, sourceInput);
+        String draftsJson = extractor.extractDraftsJson(sourceInput);
+        List<JsonNode> drafts = validator.validateAll(draftsJson, sourceInput);
 
-        CareerEvidence evidence;
-        try {
-            evidence = toEvidence(draft, sourceInput);
-        } catch (IllegalArgumentException e) {
-            // 도메인 불변식 위반은 "클라이언트 요청이 잘못됨"(400)이 아니라
-            // "추출 결과가 계약을 어김"(422)이다. 둘을 섞으면 계약 위반율을 집계할 수 없다.
-            throw new EvidenceExtractionException("Draft violates a domain invariant: " + e.getMessage());
+        List<CareerEvidence> evidences = new ArrayList<>();
+        for (int i = 0; i < drafts.size(); i++) {
+            try {
+                // 모델은 출처를 말하지 않는다. 여기서 시스템이 아는 값을 주입해 조립하고,
+                // 조립 결과가 시스템 계약(career-evidence.schema.json)을 만족하는지 다시 본다.
+                JsonNode assembled = assembleWithSource(drafts.get(i), sourceInput);
+                validator.validateAssembled(assembled);
+                evidences.add(toEvidence(assembled, sourceInput));
+            } catch (EvidenceExtractionException e) {
+                throw new EvidenceExtractionException("evidences[" + i + "]: " + e.getMessage());
+            } catch (IllegalArgumentException e) {
+                // 도메인 불변식 위반은 "클라이언트 요청이 잘못됨"(400)이 아니라
+                // "추출 결과가 계약을 어김"(422)이다. 둘을 섞으면 계약 위반율을 집계할 수 없다.
+                throw new EvidenceExtractionException(
+                        "evidences[" + i + "] violates a domain invariant: " + e.getMessage());
+            }
         }
-        return evidenceRepository.save(evidence);
+        return evidenceRepository.saveAll(evidences);
     }
 
     /**
@@ -96,6 +115,35 @@ public class CareerEvidenceService {
     public SourceInput findSourceInput(UUID sourceInputId) {
         return sourceInputRepository.findById(sourceInputId)
                 .orElseThrow(() -> new NoSuchElementException("SourceInput not found: " + sourceInputId));
+    }
+
+    /**
+     * 모델 출력에 출처를 붙여 완성된 Evidence 모양으로 만든다.
+     *
+     * <pre>
+     * source.type       &lt;- SourceInput
+     * source.originId   &lt;- SourceInput
+     * source.url        &lt;- SourceInput
+     * source.capturedAt &lt;- SourceInput
+     * source.excerpt    &lt;- 모델이 고른 sourceExcerpt
+     * </pre>
+     */
+    private JsonNode assembleWithSource(JsonNode llmDraft, SourceInput sourceInput) {
+        ObjectNode assembled = llmDraft.deepCopy();
+        String excerpt = assembled.path("sourceExcerpt").asText();
+        assembled.remove("sourceExcerpt");
+
+        ObjectNode source = assembled.putObject("source");
+        source.put("type", sourceInput.getType().name());
+        source.put("originId", sourceInput.getId().toString());
+        source.put("excerpt", excerpt);
+        if (sourceInput.getUrl() == null) {
+            source.putNull("url");
+        } else {
+            source.put("url", sourceInput.getUrl());
+        }
+        source.put("capturedAt", DateTimeFormatter.ISO_INSTANT.format(sourceInput.getCapturedAt()));
+        return assembled;
     }
 
     private CareerEvidence toEvidence(JsonNode draft, SourceInput sourceInput) {

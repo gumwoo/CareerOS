@@ -13,16 +13,30 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 추출 결과가 도메인으로 들어오기 전 두 단계를 통과해야 한다.
+ * 추출 결과가 DB 로 들어가기까지 통과해야 하는 관문.
  *
- * <ol>
- *   <li>JSON Schema 검증 — 구조와 필수 필드</li>
- *   <li>excerpt 포함 검증 — {@code source.excerpt}가 실제 원문에서 나온 구절인가</li>
- * </ol>
+ * <pre>
+ * LLM 출력
+ *   -> career-evidence.llm.schema.json   모델이 말할 수 있는 것의 계약
+ *   -> 원문 대조 (excerpt / 수치)
+ *   -> backend 가 SourceInput 에서 출처를 주입
+ *   -> career-evidence.schema.json       시스템 내부 Evidence 의 완성된 모양
+ *   -> 도메인
+ * </pre>
+ *
+ * <p>두 스키마를 나눈 이유: 출처(type/originId/url/capturedAt)는 시스템이 이미 아는 값이다.
+ * 모델에게 물어봐도 저장할 때는 버리고, 버릴 값의 형식이 틀렸다는 이유로 멀쩡한 추출 전체가
+ * 거부될 수 있다. 물어보지 않으면 만들어낼 수도 없다.
+ * (Fit 쪽에서 fit-analysis.llm.schema.json 을 나눈 것과 같은 원칙)
+ *
+ * <p>조립 결과를 다시 검증하는 이유: 그러지 않으면 career-evidence.schema.json 이
+ * 런타임에서 아무도 쓰지 않는 계약이 된다. 조립 로직의 필드 누락·잘못된 매핑도 여기서 잡힌다.
  *
  * <p>2번이 별도로 필요한 이유: JSON Schema는 excerpt가 비어 있지 않은 문자열인지까지만
  * 확인할 수 있고, 그것이 원문 그대로인지는 확인하지 못한다. 이 검증이 없으면
@@ -32,7 +46,8 @@ import java.util.stream.Collectors;
 @Component
 public class EvidenceDraftValidator {
 
-    private static final String SCHEMA_PATH = "schemas/career-evidence.schema.json";
+    private static final String LLM_SCHEMA_PATH = "schemas/career-evidence.llm.schema.json";
+    private static final String PERSISTED_SCHEMA_PATH = "schemas/career-evidence.schema.json";
 
     /**
      * Spring이 관리하는 ObjectMapper를 주입받지 않는다.
@@ -43,13 +58,19 @@ public class EvidenceDraftValidator {
      * HTTP 직렬화는 그대로 Spring의 Jackson 3가 담당한다.
      */
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final JsonSchema schema;
+
+    /** 모델이 말할 수 있는 것. */
+    private final JsonSchema llmSchema;
+
+    /** 시스템 내부 Evidence 의 완성된 모양. */
+    private final JsonSchema persistedSchema;
 
     public EvidenceDraftValidator() {
-        this.schema = loadSchema();
+        this.llmSchema = loadSchema(LLM_SCHEMA_PATH);
+        this.persistedSchema = loadSchema(PERSISTED_SCHEMA_PATH);
     }
 
-    private JsonSchema loadSchema() {
+    private JsonSchema loadSchema(String path) {
         JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012);
 
         // JSON Schema 2020-12에서 format은 기본적으로 annotation이지 assertion이 아니다.
@@ -59,41 +80,73 @@ public class EvidenceDraftValidator {
                 .formatAssertionsEnabled(true)
                 .build();
 
-        try (InputStream in = new ClassPathResource(SCHEMA_PATH).getInputStream()) {
+        try (InputStream in = new ClassPathResource(path).getInputStream()) {
             return factory.getSchema(in, config);
         } catch (IOException e) {
             // 스키마가 없으면 검증 없이 저장되는 상황이 되므로 기동 자체를 실패시킨다.
-            throw new IllegalStateException("Cannot load " + SCHEMA_PATH
+            throw new IllegalStateException("Cannot load " + path
                     + ". build.gradle 의 processResources 가 저장소 루트 schemas/ 를 복사하는지 확인할 것.", e);
         }
     }
 
     /**
-     * @return 스키마와 원문 대조를 모두 통과한 초안
-     * @throws EvidenceExtractionException 통과하지 못한 경우. 저장하지 않는다.
+     * 추출 결과 배열 전체를 검증한다.
+     *
+     * <p><b>하나라도 통과하지 못하면 전체를 거부한다.</b> 일부만 저장하면
+     * "모델이 무엇을 냈는가"가 흐려지고, 사용자는 걸러진 항목이 있었다는 사실조차 모른다.
+     *
+     * @return 검증을 통과한 초안 목록. 추출할 경험이 없었으면 빈 목록.
+     * @throws EvidenceExtractionException 하나라도 통과하지 못한 경우. 아무것도 저장하지 않는다.
      */
-    public JsonNode validate(String draftJson, SourceInput sourceInput) {
-        JsonNode draft = parse(draftJson);
+    public List<JsonNode> validateAll(String responseJson, SourceInput sourceInput) {
+        JsonNode response = parse(responseJson);
 
-        Set<ValidationMessage> violations = schema.validate(draft);
+        // 응답 전체를 한 번에 검증한다. 이 스키마가 곧 Structured Output 계약이므로
+        // 배열을 풀어 원소마다 따로 대는 방식이면 계약과 검증이 어긋난다.
+        assertSatisfies(llmSchema, response, "career-evidence.llm.schema.json");
+
+        List<JsonNode> validated = new ArrayList<>();
+        int index = 0;
+        for (JsonNode draft : response.path("evidences")) {
+            try {
+                // 스키마가 잡지 못하는 것 — 원문에 실제로 있는 말인가.
+                verifyExcerptComesFromSource(draft, sourceInput);
+                verifyNumbersComeFromSource(draft, sourceInput);
+            } catch (EvidenceExtractionException e) {
+                throw new EvidenceExtractionException("evidences[" + index + "]: " + e.getMessage());
+            }
+            validated.add(draft);
+            index++;
+        }
+        return validated;
+    }
+
+    /**
+     * backend 가 출처를 주입해 조립한 결과가 시스템 계약을 만족하는가.
+     *
+     * <p>모델이 아니라 <b>우리 코드</b>를 검사하는 관문이다.
+     * 조립에서 필드를 빠뜨리거나 capturedAt 직렬화가 어긋나면 여기서 걸린다.
+     */
+    public void validateAssembled(JsonNode assembled) {
+        assertSatisfies(persistedSchema, assembled, "career-evidence.schema.json");
+    }
+
+    private void assertSatisfies(JsonSchema schema, JsonNode node, String schemaName) {
+        Set<ValidationMessage> violations = schema.validate(node);
         if (!violations.isEmpty()) {
             String detail = violations.stream()
                     .map(ValidationMessage::getMessage)
                     .sorted()
                     .collect(Collectors.joining("; "));
-            throw new EvidenceExtractionException("Draft violates career-evidence.schema.json: " + detail);
+            throw new EvidenceExtractionException("Draft violates " + schemaName + ": " + detail);
         }
-
-        verifyExcerptComesFromSource(draft, sourceInput);
-        verifyNumbersComeFromSource(draft, sourceInput);
-        return draft;
     }
 
-    private JsonNode parse(String draftJson) {
+    private JsonNode parse(String responseJson) {
         try {
-            return objectMapper.readTree(draftJson);
+            return objectMapper.readTree(responseJson);
         } catch (IOException e) {
-            throw new EvidenceExtractionException("Draft is not valid JSON: " + e.getMessage());
+            throw new EvidenceExtractionException("Extractor response is not valid JSON: " + e.getMessage());
         }
     }
 
@@ -121,29 +174,20 @@ public class EvidenceDraftValidator {
         }
     }
 
+    /**
+     * 모델이 고른 구절이 실제 원문에서 그대로 나온 것인가.
+     *
+     * <p>originId / type 을 모델 출력과 대조하던 검사는 없앴다. 모델은 더 이상 그 값을
+     * 말하지 않는다. 프롬프트에 엉뚱한 SourceInput 이 들어가는 버그는 모델에게 UUID 를
+     * 베껴 쓰게 해서 잡을 게 아니라 프롬프트 조립 코드를 테스트해서 잡아야 한다.
+     */
     private void verifyExcerptComesFromSource(JsonNode draft, SourceInput sourceInput) {
-        JsonNode source = draft.path("source");
-
-        String originId = source.path("originId").asText("");
-        if (!sourceInput.getId().toString().equals(originId)) {
-            throw new EvidenceExtractionException(
-                    "source.originId does not match the SourceInput being extracted: " + originId);
-        }
-
-        String excerpt = source.path("excerpt").asText("");
+        String excerpt = draft.path("sourceExcerpt").asText("");
         if (!sourceInput.contains(excerpt)) {
             throw new EvidenceExtractionException(
-                    "source.excerpt is not a verbatim fragment of the original text. "
-                            + "요약하거나 윤문한 excerpt는 허용되지 않으며, "
+                    "sourceExcerpt is not a verbatim fragment of the original text. "
+                            + "요약하거나 윤문한 구절은 허용되지 않으며, "
                             + SourceInput.MIN_EXCERPT_LENGTH + "자 미만도 근거로 인정하지 않는다.");
-        }
-
-        // type / capturedAt 은 시스템이 아는 값이다. 추출기가 다른 값을 말하면 신뢰할 수 없다.
-        String declaredType = source.path("type").asText("");
-        if (!sourceInput.getType().name().equals(declaredType)) {
-            throw new EvidenceExtractionException(
-                    "source.type does not match the actual SourceInput: " + declaredType
-                            + " (actual " + sourceInput.getType() + ")");
         }
     }
 }

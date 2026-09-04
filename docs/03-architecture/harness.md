@@ -86,7 +86,7 @@ CI          .github/workflows/contracts.yml
 | 3 | 근거로 인정되려면 excerpt가 충분히 길어야 한다 | `SourceInput.MIN_EXCERPT_LENGTH` + 스키마 + DB CHECK | 적용됨 |
 | 4 | Evidence의 정량 수치는 원문에 존재해야 한다 | `NumericFacts` | 적용됨 |
 | 5 | 추출 결과는 사용자 확인 전까지 사실이 아니다 | `EvidenceStatus.DRAFT` 하드코딩 | 적용됨 |
-| 6 | `source.type` / `capturedAt`은 시스템이 소유한다 | `CareerEvidenceService.toEvidence()` | 적용됨 |
+| 6 | 출처(`type`/`originId`/`url`/`capturedAt`)는 시스템이 소유한다 | `career-evidence.llm.schema.json` (모델이 말할 수 없음) | 적용됨 |
 | 7 | 필드 생략과 `null` 명시는 다르다 | 스키마 `required` 전면 적용 | 적용됨 |
 | 8 | 모델이 계약에 없는 필드를 덧붙일 수 없다 | `additionalProperties: false` | 적용됨 |
 | 9 | LLM은 최종 Fit Score를 계산하지 않는다 | `fit-analysis.llm.schema.json` | 계약만 (구현 전) |
@@ -95,6 +95,10 @@ CI          .github/workflows/contracts.yml
 | 12 | 공고의 우대사항을 필수요건으로 옮길 수 없다 | `requiredSkills` / `preferredSkills` 분리 | 계약만 (구현 전) |
 | 13 | 생성 문장은 Evidence Reference를 정확히 1개 가진다 | — | **미구현** (ADR-0004) |
 | 14 | 실행되어야 하는 스크립트는 실행 비트를 유지한다 | `check_executables_keep_exec_bit` | 적용됨 |
+| 15 | 스텁 추출기는 기본 프로파일에서 등록되지 않는다 | `@Profile("stub")` + `StubExtractorProfileTest` | 적용됨 |
+| 16 | 필수 개수 제약으로 모델에게 지어낼 압력을 주지 않는다 | `skills`/`category` `minItems` 제거 | 적용됨 |
+| 17 | 조립 결과도 계약을 만족해야 한다 | `validateAssembled()` | 적용됨 |
+| 18 | LLM 계약 = Structured Output 계약 = 추출기 반환 계약 | `career-evidence.llm.schema.json` 루트 object + `evidences` | 적용됨 |
 
 9~12는 계약에는 있으나 강제할 코드가 아직 없다. 해당 기능을 구현할 때
 가드와 메타테스트를 **같은 커밋에서** 추가한다.
@@ -103,7 +107,8 @@ CI          .github/workflows/contracts.yml
 
 ```text
 schemas/                     계약. 런타임 검증에 실제로 쓰인다.
-  career-evidence.schema.json
+  career-evidence.llm.schema.json  LLM 요청용 — { evidences: [...] }, 출처 없음
+  career-evidence.schema.json      완성된 Evidence — backend가 출처를 채움
   job-posting.schema.json
   fit-analysis.llm.schema.json    LLM 요청용 — 점수 필드 없음
   fit-analysis.schema.json        API 응답용 — backend가 점수를 채움

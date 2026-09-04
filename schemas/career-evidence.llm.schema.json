@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://careeros.dev/schemas/career-evidence.llm.schema.json",
+  "title": "CareerEvidenceLlmOutput",
+  "description": "LLM에게 요청하는 응답 스키마. Structured Output 은 루트가 object 여야 하므로 Evidence 목록을 evidences 로 감싼다. 이 파일 하나가 곧 Structured Output 계약이고 EvidenceExtractor 의 반환 계약이며 Validator 의 입력 계약이다. 셋이 어긋나면 안 된다. 모델은 '이 Evidence를 뒷받침하는 원문 구간'만 고른다. 출처(provenance)는 시스템이 소유하므로 source 객체 자체가 여기에 없다. 정본 정의는 docs/01-domain/career-evidence.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidences"
+  ],
+  "properties": {
+    "evidences": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      },
+      "description": "이력서·프로젝트 원문 하나에 독립적인 경험이 여러 개 들어 있는 것이 정상이다. 추출할 경험이 없으면 빈 배열. 억지로 하나를 만들지 않는다."
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "category",
+        "context",
+        "problem",
+        "analysis",
+        "rootCause",
+        "action",
+        "result",
+        "metrics",
+        "skills",
+        "usableFor",
+        "sourceExcerpt"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "결과가 아니라 문제를 식별하는 이름"
+        },
+        "category": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Performance / Backend / Frontend / Infra / Troubleshooting / Collaboration 등. 판단할 수 없으면 빈 배열([]). 필드를 생략하지 않는다."
+        },
+        "context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "role",
+            "period",
+            "teamSize"
+          ],
+          "properties": {
+            "project": {
+              "type": "string",
+              "minLength": 1
+            },
+            "role": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "period": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "teamSize": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        },
+        "problem": {
+          "type": "string",
+          "minLength": 1
+        },
+        "analysis": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "원문에 조사 방법이 없으면 null. 필드를 생략하지 않는다. 추측 금지."
+        },
+        "rootCause": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "원문이 원인을 밝히지 않았다면 반드시 null. 필드를 생략하지 않는다. 그럴듯한 추측을 넣지 않는다."
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "type": "string",
+          "minLength": 1
+        },
+        "metrics": {
+          "type": "array",
+          "description": "정량 성과. 원문에 수치가 없으면 빈 배열([]). 필드를 생략하지 않는다. 추정값을 넣지 않는다.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "before",
+              "after",
+              "unit"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "before": {
+                "type": "string"
+              },
+              "after": {
+                "type": "string"
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "단위가 없으면 null. 필드를 생략하지 않는다."
+              }
+            }
+          }
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "원문에서 실제로 확인된 기술만. 문맥 추측 금지. 기술명이 드러나지 않는 경험(협업·리딩·요구사항 분석 등)이면 빈 배열([]). 최소 1개를 요구하면 모델이 제약을 만족시키려 기술명을 지어낸다."
+        },
+        "usableFor": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "이 경험이 답할 수 있는 요구사항 유형. 판단할 수 없으면 빈 배열([]). 필드를 생략하지 않는다."
+        },
+        "sourceExcerpt": {
+          "type": "string",
+          "minLength": 20,
+          "description": "이 Evidence의 근거가 된 원문 구절 그대로. 요약·윤문 금지. backend 가 SourceInput 원문과 대조하며, 통과하면 source.excerpt 로 조립된다. 모델이 출처에 대해 말할 수 있는 유일한 값이다."
+        }
+      },
+      "description": "하나의 독립적인 경험."
+    }
+  }
+}
