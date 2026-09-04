@@ -133,19 +133,23 @@ class EvidenceDraftValidatorTest {
     }
 
     @Test
-    @DisplayName("배열이 아니면 거부한다 — 추출기는 항상 목록을 반환한다")
-    void rejectsNonArray() {
+    @DisplayName("evidences 래퍼가 없으면 거부한다 — Structured Output 계약과 같은 모양이어야 한다")
+    void rejectsResponseWithoutWrapper() {
+        // Evidence 객체를 그대로 던지는 경우 (래퍼 없음)
         assertThatThrownBy(() -> validator.validateAll(singleDraft(), sourceInput))
                 .isInstanceOf(EvidenceExtractionException.class)
-                .hasMessageContaining("array");
+                .hasMessageContaining("llm.schema.json");
+
+        // 배열을 그대로 던지는 경우 — Structured Output 은 object 루트를 요구한다
+        assertThatThrownBy(() -> validator.validateAll("[" + singleDraft() + "]", sourceInput))
+                .isInstanceOf(EvidenceExtractionException.class)
+                .hasMessageContaining("llm.schema.json");
     }
 
     @Test
     @DisplayName("원문 하나에서 Evidence 여러 개를 받는다")
     void acceptsMultipleDrafts() {
-        String two = "[" + singleDraft() + "," + singleDraft() + "]";
-
-        assertThat(validator.validateAll(two, sourceInput)).hasSize(2);
+        assertThat(validator.validateAll(response(singleDraft(), singleDraft()), sourceInput)).hasSize(2);
     }
 
     @Test
@@ -153,17 +157,15 @@ class EvidenceDraftValidatorTest {
     void rejectsWholeBatchWhenOneItemFails() {
         String bad = singleDraft().replace("\"metrics\": [],",
                 "\"metrics\": [{\"name\": \"x\", \"before\": \"9999\", \"after\": \"0\", \"unit\": null}],");
-        String mixed = "[" + singleDraft() + "," + bad + "]";
-
-        assertThatThrownBy(() -> validator.validateAll(mixed, sourceInput))
+        assertThatThrownBy(() -> validator.validateAll(response(singleDraft(), bad), sourceInput))
                 .isInstanceOf(EvidenceExtractionException.class)
-                .hasMessageContaining("drafts[1]");
+                .hasMessageContaining("evidences[1]");
     }
 
     @Test
     @DisplayName("추출할 경험이 없으면 빈 목록이다 — 억지로 만들지 않는다")
     void acceptsEmptyExtraction() {
-        assertThat(validator.validateAll("[]", sourceInput)).isEmpty();
+        assertThat(validator.validateAll(response(), sourceInput)).isEmpty();
     }
 
     @Test
@@ -213,9 +215,13 @@ class EvidenceDraftValidatorTest {
         }
     }
 
-    /** 추출기는 배열을 반환한다. 단건 테스트도 배열로 감싼다. */
+    /** 추출기는 evidences 로 감싼 object 를 반환한다. 단건 테스트도 같은 모양으로 감싼다. */
     private String draft() {
-        return "[" + singleDraft() + "]";
+        return response(singleDraft());
+    }
+
+    private String response(String... evidences) {
+        return "{\"evidences\": [" + String.join(",", evidences) + "]}";
     }
 
     private String singleDraft() {

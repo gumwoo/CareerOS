@@ -80,17 +80,27 @@ CASES = [
     (
         "출처 경계 · LLM 스키마에 source 객체가 생기면",
         "schemas/career-evidence.llm.schema.json",
-        lambda s: s["properties"].update({"source": {"type": "object"}}),
+        lambda s: s["$defs"]["evidence"]["properties"].update({"source": {"type": "object"}}),
     ),
     (
         "출처 경계 · LLM 스키마에 originId 가 생기면",
         "schemas/career-evidence.llm.schema.json",
-        lambda s: s["properties"].update({"originId": {"type": "string"}}),
+        lambda s: s["$defs"]["evidence"]["properties"].update({"originId": {"type": "string"}}),
     ),
     (
         "출처 경계 · sourceExcerpt 가 required 에서 빠지면",
         "schemas/career-evidence.llm.schema.json",
-        remove_required("sourceExcerpt"),
+        lambda s: s["$defs"]["evidence"]["required"].remove("sourceExcerpt"),
+    ),
+    (
+        "Structured Output · LLM 스키마 루트가 배열이 되면",
+        "schemas/career-evidence.llm.schema.json",
+        lambda s: s.update({"type": "array"}),
+    ),
+    (
+        "Structured Output · evidences 래퍼가 사라지면",
+        "schemas/career-evidence.llm.schema.json",
+        lambda s: (s["properties"].pop("evidences"), s["required"].clear()),
     ),
     (
         "출처 경계 · 완성 스키마에서 source 가 사라지면",

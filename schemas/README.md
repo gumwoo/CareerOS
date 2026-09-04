@@ -5,7 +5,7 @@ Agent 출력과 애플리케이션 경계에서 **실제로 검증에 사용하�
 
 | 파일 | 정본 문서 | 쓰이는 곳 |
 | --- | --- | --- |
-| [career-evidence.llm.schema.json](career-evidence.llm.schema.json) | [docs/01-domain/career-evidence.md](../docs/01-domain/career-evidence.md) | **LLM 요청 스키마.** 모델이 말할 수 있는 것. 출처(`source`) 없음 |
+| [career-evidence.llm.schema.json](career-evidence.llm.schema.json) | [docs/01-domain/career-evidence.md](../docs/01-domain/career-evidence.md) | **LLM 요청 스키마.** `{ evidences: [...] }`. 출처(`source`) 없음 |
 | [career-evidence.schema.json](career-evidence.schema.json) | [docs/01-domain/career-evidence.md](../docs/01-domain/career-evidence.md) | **완성된 Evidence.** backend가 출처를 주입한 뒤 재검증 |
 | [job-posting.schema.json](job-posting.schema.json) | [docs/02-features/job-import-analyzer.md](../docs/02-features/job-import-analyzer.md) | 공고 파싱 결과 검증 |
 | [fit-analysis.llm.schema.json](fit-analysis.llm.schema.json) | [ADR-0002](../docs/adr/0002-fit-score-computed-by-system-not-llm.md) | **LLM 요청 스키마.** relevance 평가만. 점수 필드 없음 |
@@ -31,6 +31,8 @@ PostgreSQL
 
 1. **문서와 스키마는 함께 바꾼다.** 한쪽만 바꾸면 정본이 둘로 갈라진다.
 2. `additionalProperties: false`를 유지한다. 모델이 임의 필드를 덧붙이는 것을 막는다.
+   **LLM 요청 스키마는 루트가 object여야 한다.** Structured Output이 배열 루트를 받지 않는다.
+   목록을 낼 때는 `{ evidences: [...] }`처럼 감싼다.
 3. **"모르는 값"은 `null`을 허용하되 required에서 빼지 않는다.**
    필드 자체를 생략하는 것과 `null`로 명시하는 것은 다르다. 후자만 "확인했고 없었다"를 뜻한다.
 4. **`fit-analysis.schema.json`을 LLM Structured Output에 그대로 쓰지 않는다.**
@@ -56,7 +58,7 @@ PostgreSQL
 
    ```text
    LLM 요청 (career-evidence.llm.schema.json)
-     ... + sourceExcerpt
+     { evidences: [ ... + sourceExcerpt ] }
              ↓
    원문 대조 (excerpt / 수치)
              ↓

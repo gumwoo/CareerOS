@@ -65,11 +65,12 @@ public class StubEvidenceExtractor implements EvidenceExtractor {
         draft.put("sourceExcerpt", excerpt);
 
         // 스텁은 원문을 쪼개지 못하므로 항상 1건이다. 실제 추출기는 여러 건을 낼 수 있다.
-        ArrayNode drafts = objectMapper.createArrayNode();
-        drafts.add(draft);
+        ObjectNode response = objectMapper.createObjectNode();
+        ArrayNode evidences = response.putArray("evidences");
+        evidences.add(draft);
 
         try {
-            return objectMapper.writeValueAsString(drafts);
+            return objectMapper.writeValueAsString(response);
         } catch (Exception e) {
             throw new EvidenceExtractionException("Cannot serialize stub draft: " + e.getMessage());
         }

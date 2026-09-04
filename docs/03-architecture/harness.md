@@ -98,6 +98,7 @@ CI          .github/workflows/contracts.yml
 | 15 | 스텁 추출기는 기본 프로파일에서 등록되지 않는다 | `@Profile("stub")` + `StubExtractorProfileTest` | 적용됨 |
 | 16 | 필수 개수 제약으로 모델에게 지어낼 압력을 주지 않는다 | `skills`/`category` `minItems` 제거 | 적용됨 |
 | 17 | 조립 결과도 계약을 만족해야 한다 | `validateAssembled()` | 적용됨 |
+| 18 | LLM 계약 = Structured Output 계약 = 추출기 반환 계약 | `career-evidence.llm.schema.json` 루트 object + `evidences` | 적용됨 |
 
 9~12는 계약에는 있으나 강제할 코드가 아직 없다. 해당 기능을 구현할 때
 가드와 메타테스트를 **같은 커밋에서** 추가한다.
@@ -106,7 +107,7 @@ CI          .github/workflows/contracts.yml
 
 ```text
 schemas/                     계약. 런타임 검증에 실제로 쓰인다.
-  career-evidence.llm.schema.json  LLM 요청용 — 출처 없음
+  career-evidence.llm.schema.json  LLM 요청용 — { evidences: [...] }, 출처 없음
   career-evidence.schema.json      완성된 Evidence — backend가 출처를 채움
   job-posting.schema.json
   fit-analysis.llm.schema.json    LLM 요청용 — 점수 필드 없음

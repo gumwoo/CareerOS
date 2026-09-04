@@ -79,12 +79,12 @@ public class CareerEvidenceService {
                 validator.validateAssembled(assembled);
                 evidences.add(toEvidence(assembled, sourceInput));
             } catch (EvidenceExtractionException e) {
-                throw new EvidenceExtractionException("drafts[" + i + "]: " + e.getMessage());
+                throw new EvidenceExtractionException("evidences[" + i + "]: " + e.getMessage());
             } catch (IllegalArgumentException e) {
                 // 도메인 불변식 위반은 "클라이언트 요청이 잘못됨"(400)이 아니라
                 // "추출 결과가 계약을 어김"(422)이다. 둘을 섞으면 계약 위반율을 집계할 수 없다.
                 throw new EvidenceExtractionException(
-                        "drafts[" + i + "] violates a domain invariant: " + e.getMessage());
+                        "evidences[" + i + "] violates a domain invariant: " + e.getMessage());
             }
         }
         return evidenceRepository.saveAll(evidences);

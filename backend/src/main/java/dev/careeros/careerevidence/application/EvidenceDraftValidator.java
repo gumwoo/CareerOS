@@ -98,31 +98,27 @@ public class EvidenceDraftValidator {
      * @return 검증을 통과한 초안 목록. 추출할 경험이 없었으면 빈 목록.
      * @throws EvidenceExtractionException 하나라도 통과하지 못한 경우. 아무것도 저장하지 않는다.
      */
-    public List<JsonNode> validateAll(String draftsJson, SourceInput sourceInput) {
-        JsonNode drafts = parse(draftsJson);
-        if (!drafts.isArray()) {
-            throw new EvidenceExtractionException(
-                    "Extractor must return a JSON array of drafts, got: " + drafts.getNodeType());
-        }
+    public List<JsonNode> validateAll(String responseJson, SourceInput sourceInput) {
+        JsonNode response = parse(responseJson);
+
+        // 응답 전체를 한 번에 검증한다. 이 스키마가 곧 Structured Output 계약이므로
+        // 배열을 풀어 원소마다 따로 대는 방식이면 계약과 검증이 어긋난다.
+        assertSatisfies(llmSchema, response, "career-evidence.llm.schema.json");
 
         List<JsonNode> validated = new ArrayList<>();
         int index = 0;
-        for (JsonNode draft : drafts) {
+        for (JsonNode draft : response.path("evidences")) {
             try {
-                validated.add(validateOne(draft, sourceInput));
+                // 스키마가 잡지 못하는 것 — 원문에 실제로 있는 말인가.
+                verifyExcerptComesFromSource(draft, sourceInput);
+                verifyNumbersComeFromSource(draft, sourceInput);
             } catch (EvidenceExtractionException e) {
-                throw new EvidenceExtractionException("drafts[" + index + "]: " + e.getMessage());
+                throw new EvidenceExtractionException("evidences[" + index + "]: " + e.getMessage());
             }
+            validated.add(draft);
             index++;
         }
         return validated;
-    }
-
-    private JsonNode validateOne(JsonNode draft, SourceInput sourceInput) {
-        assertSatisfies(llmSchema, draft, "career-evidence.llm.schema.json");
-        verifyExcerptComesFromSource(draft, sourceInput);
-        verifyNumbersComeFromSource(draft, sourceInput);
-        return draft;
     }
 
     /**
@@ -146,11 +142,11 @@ public class EvidenceDraftValidator {
         }
     }
 
-    private JsonNode parse(String draftsJson) {
+    private JsonNode parse(String responseJson) {
         try {
-            return objectMapper.readTree(draftsJson);
+            return objectMapper.readTree(responseJson);
         } catch (IOException e) {
-            throw new EvidenceExtractionException("Draft is not valid JSON: " + e.getMessage());
+            throw new EvidenceExtractionException("Extractor response is not valid JSON: " + e.getMessage());
         }
     }
 

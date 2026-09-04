@@ -143,6 +143,26 @@ def check_evidence_llm_schema_owns_nothing_systemic() -> None:
         return
 
     llm = json.loads(llm_path.read_text(encoding="utf-8"))
+
+    # Structured Output 은 루트를 object 로 요구한다. 배열 루트는 쓸 수 없다.
+    # 이 스키마 하나가 Structured Output 계약이자 EvidenceExtractor 반환 계약이자
+    # Validator 입력 계약이므로 셋이 어긋나면 안 된다.
+    if llm.get("type") != "object":
+        fail("evidence-llm-boundary",
+             f"LLM 요청 스키마의 루트가 object 가 아니다 (현재 {llm.get('type')}). "
+             "Structured Output 은 object 루트를 요구한다")
+    if llm.get("required") != ["evidences"]:
+        fail("evidence-llm-boundary",
+             f"루트 required 는 ['evidences'] 여야 한다 (현재 {llm.get('required')})")
+    items_ref = llm.get("properties", {}).get("evidences", {}).get("items", {}).get("$ref")
+    if items_ref != "#/$defs/evidence":
+        fail("evidence-llm-boundary", f"evidences.items 가 $defs/evidence 를 가리키지 않는다 ({items_ref})")
+
+    evidence = llm.get("$defs", {}).get("evidence")
+    if evidence is None:
+        fail("evidence-llm-boundary", "$defs.evidence 가 없다")
+        return
+
     system_owned = {"source", "originId", "capturedAt", "url", "type"}
     found = property_names_of(llm) & system_owned
     if found:
@@ -150,11 +170,11 @@ def check_evidence_llm_schema_owns_nothing_systemic() -> None:
              f"LLM 요청 스키마에 시스템 소유 필드가 있다: {sorted(found)}. "
              "출처는 backend 가 SourceInput 에서 주입한다")
 
-    if "sourceExcerpt" not in llm["required"]:
+    if "sourceExcerpt" not in evidence["required"]:
         fail("evidence-llm-boundary", "sourceExcerpt 가 required 가 아니다. "
                                       "모델이 근거 구간을 고르지 않으면 원문 대조가 성립하지 않는다")
 
-    excerpt = llm["properties"].get("sourceExcerpt", {})
+    excerpt = evidence["properties"].get("sourceExcerpt", {})
     if excerpt.get("minLength", 0) < 20:
         fail("evidence-llm-boundary",
              f"sourceExcerpt 에 실질적인 minLength 하한이 없다 (현재 {excerpt.get('minLength', 0)})")
@@ -165,7 +185,7 @@ def check_evidence_llm_schema_owns_nothing_systemic() -> None:
         fail("evidence-llm-boundary", "career-evidence.schema.json 에서 source 가 사라졌다")
 
     # "모든 필드 required" 원칙은 LLM 스키마에도 적용된다.
-    missing = set(llm["properties"]) - set(llm["required"])
+    missing = set(evidence["properties"]) - set(evidence["required"])
     if missing:
         fail("evidence-llm-boundary", f"LLM 스키마에서 required 가 아닌 필드: {sorted(missing)}")
 

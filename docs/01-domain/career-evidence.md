@@ -10,12 +10,16 @@ CareerOS의 가장 중요한 데이터 구조이며, **사용자 경력에 대�
 
 | 계약 | 무엇을 말하는가 |
 | --- | --- |
-| [`career-evidence.llm.schema.json`](../../schemas/career-evidence.llm.schema.json) | **모델이 말할 수 있는 것.** 아래 필드에서 `source`를 뺀 나머지 + `sourceExcerpt` |
+| [`career-evidence.llm.schema.json`](../../schemas/career-evidence.llm.schema.json) | **모델이 말할 수 있는 것.** `{ evidences: [ ... ] }` — 각 항목은 아래 필드에서 `source`를 뺀 나머지 + `sourceExcerpt` |
 | [`career-evidence.schema.json`](../../schemas/career-evidence.schema.json) | **완성된 Evidence의 모양.** backend가 `source`를 주입한 결과 |
 
 출처(`source.type` / `originId` / `url` / `capturedAt`)는 시스템이 이미 아는 값이라
 모델에게 묻지 않는다. 물어보면 저장할 때 버리게 되고, 버릴 값의 형식이 틀렸다는 이유로
 멀쩡한 추출 전체가 거부될 수 있다. 모델이 출처에 대해 말하는 값은 **근거 구간(`sourceExcerpt`) 하나뿐**이다.
+
+LLM 계약의 루트가 배열이 아니라 `{ "evidences": [...] }` 객체인 이유는 Structured Output이
+루트를 object로 요구하기 때문이다. 이 파일 하나가 **Structured Output 계약이자
+`EvidenceExtractor`의 반환 계약이자 Validator의 입력 계약**이다. 셋이 어긋나면 안 된다.
 
 **세 파일은 함께 변경한다.** 하나만 바꾸면 안 된다.
 
